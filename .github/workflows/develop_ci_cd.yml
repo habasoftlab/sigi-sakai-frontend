@@ -1,0 +1,39 @@
+# .github/workflows/ci.yml
+
+name: CI Servispeed Frontend (Build & Test)
+
+# Triggers
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+
+# Jobs
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Obtener el código
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Configurar Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. Instalar dependencias
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. Ejecutar pruebas de Linting
+      - name: Run Lint
+        run: npm run lint
+
+      # 5. Construir la aplicación
+      - name: Build React/Next.js App
+        run: npm run build
