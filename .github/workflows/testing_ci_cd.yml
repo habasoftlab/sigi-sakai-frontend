@@ -1,11 +1,11 @@
-name: develop_ci_cd
+name: testing_ci_cd
 
 # Triggers
 on:
   push:
-    branches: [ develop ]
+    branches: [ testing ]
   pull_request:
-    branches: [ develop ]
+    branches: [ testing ]
 
 # Jobs
 jobs:
