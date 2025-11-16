@@ -23,13 +23,18 @@ const AppMenu = () => {
             to: '/pages',
             items: [
                 {
-                    label: 'Auth',
+                    label: 'Autenticacion',
                     icon: 'pi pi-fw pi-user',
                     items: [
                         {
-                            label: 'Login',
+                            label: 'Inicio de sesion',
                             icon: 'pi pi-fw pi-sign-in',
                             to: '/auth/login'
+                        },
+                        {
+                            label: 'Registrar nuevo empleado',
+                            icon: 'pi pi-fw pi-user-plus',
+                            to: '/auth/register'
                         },
                     ]
                 },
