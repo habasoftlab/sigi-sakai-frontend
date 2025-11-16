@@ -92,9 +92,7 @@ const dummyQuotes = [
     { id: 'COT-005', cliente: 'Mario Sánchez', total: 2100.00, estatus: 'Activa', designer: 'Sofía Herrera' },
     { id: 'COT-006', cliente: 'Laura Fernández', total: 850.90, estatus: 'Activa', designer: 'Sofía Herrera' },
 ];
-// NOTA: Ya no necesitamos ordenar los datos aquí para la TreeTable
 
-// --- DATOS DE ÓRDENES (PLANO) ---
 const dummyOrders = [
     { id: 'ORD-001', cliente: 'Juan Pérez', total: 1250.00, estatus: 'En diseño', designer: 'Juan Pérez' },
     { id: 'ORD-002', cliente: 'Sofía Herrera', total: 980.50, estatus: 'En impresión', designer: 'Ana Torres' },
@@ -135,7 +133,6 @@ const Counter = () => {
     const [pendingQuantity, setPendingQuantity] = useState<number>(1);
     const [showSummaryDialog, setShowSummaryDialog] = useState(false);
     const [selectedDesigner, setSelectedDesigner] = useState(null);
-    const [selectedBilling, setSelectedBilling] = useState(null);
     const [selectedPayment, setSelectedPayment] = useState('unico');
     const [showAssignClientDialog, setShowAssignClientDialog] = useState(false);
     const [showAddNewClientDialog, setShowAddNewClientDialog] = useState(false);
@@ -147,9 +144,10 @@ const Counter = () => {
     const [requiresBilling, setRequiresBilling] = useState(false);
     const [quoteTree, setQuoteTree] = useState<TreeNode[]>([]);
     const [orderTree, setOrderTree] = useState<TreeNode[]>([]);
-    const toast = useRef<Toast>(null); // <-- LÍNEA MODIFICADA
+    const toast = useRef<Toast>(null);
+    const [selectedQuote, setSelectedQuote] = useState<any>(null);
 
-    // --- NUEVO EFFECT para transformar datos a Tree ---
+
     useEffect(() => {
         // Función helper para transformar la data plana a jerárquica
         const transformToTree = (items: any[]) => {
@@ -189,7 +187,7 @@ const Counter = () => {
         setQuoteTree(transformToTree(dummyQuotes));
         setOrderTree(transformToTree(dummyOrders));
 
-    }, []); // El array vacío [] significa que esto se ejecuta solo una vez, cuando el componente se monta
+    }, []);
 
     // --- NUEVO EFFECT para validar facturación ---
     useEffect(() => {
@@ -224,7 +222,7 @@ const Counter = () => {
             setPendingQuantity(product.minOrder ?? 1); // Pone el tiraje mínimo por defecto
             setShowQuantityDialog(true);
         }
-        setSelectedProduct(null); // Resetea el AutoComplete
+        setSelectedProduct(null);
     };
 
     const handleAddItem = () => {
@@ -241,8 +239,6 @@ const Counter = () => {
         };
 
         setQuoteItems([...quoteItems, newItem]);
-
-        // Limpiar y cerrar modal
         setShowQuantityDialog(false);
         setPendingProduct(null);
     };
@@ -260,14 +256,13 @@ const Counter = () => {
 
     const handleNewClientChange = (e: any) => {
         const name = e.target?.name;
-        const value = e.value ?? e.target?.value; // Dropdown usa e.value, InputText usa e.target.value
+        const value = e.value ?? e.target?.value;
         setNewClientData(prev => ({ ...prev, [name]: value }));
     };
 
     const handleSaveNewClient = () => {
         // Aquí iría la lógica para guardar el newClientData en la base de datos
         console.log("Guardando nuevo cliente:", newClientData);
-        // Por ahora, lo asignamos directamente a la cotización
         setAssignedClient(newClientData);
         setNewClientData({ name: '', email: '', phone: '', rfc: '', cfdi: '', cp: '' }); // Limpiar formulario
         setShowAddNewClientDialog(false); // Cerrar modal de nuevo cliente
@@ -276,18 +271,15 @@ const Counter = () => {
     const handleAssignClient = () => {
         // Asigna el cliente seleccionado de la lista a la cotización
         setAssignedClient(selectedClient);
-        setShowAssignClientDialog(false); // Cierra el modal de asignación
+        setShowAssignClientDialog(false);
     };
 
     const onRowEditComplete = (e: DataTableRowEditCompleteEvent) => {
         let { newData, index } = e;
         let _items = [...quoteItems];
-
         const updatedItem = { ..._items[index], ...newData };
         updatedItem.importe = updatedItem.costo * updatedItem.cantidad;
-
         _items[index] = updatedItem as QuoteItem;
-
         setQuoteItems(_items);
     };
 
@@ -319,9 +311,8 @@ const Counter = () => {
 
                 return days;
             }
-            return 0; // Default si el producto no se encuentra
+            return 0;
         });
-
         // Devolver el tiempo de producción más largo de la lista
         return Math.max(...timeArray);
     }, [quoteItems]); // Se recalcula solo cuando los items de la cotización cambian
@@ -347,23 +338,57 @@ const Counter = () => {
 
         // 3. Cerrar modal
         setShowSummaryDialog(false);
-
-        // 4. Limpiar estado
         setQuoteItems([]);
         setAssignedClient(null);
-        setSelectedClient(null); // Limpiar también el seleccionado por si acaso
+        setSelectedClient(null);
         setSelectedDesigner(null);
         setRequiresBilling(false);
         setSelectedPayment('unico');
     };
 
+    const selectButtonTemplate = (node: any) => {
+        // Si el nodo tiene hijos, significa que es un diseñador (no mostrar botón)
+        if (node.children && node.children.length > 0) {
+            return null;
+        }
+
+        // Si es hoja (una orden), mostrar el botón
+        return (
+            <Button
+                icon="pi pi-check"
+                size="small"
+                rounded
+                severity={selectedQuote?.key === node.key ? 'success' : 'secondary'}
+                onClick={() => setSelectedQuote(node)}
+                className="w-6 h-6 flex items-center justify-center hover:scale-110 transition-transform duration-150"
+            />
+        );
+    };
+
+
+    const handleOrder = () => {
+        if (!selectedQuote) return;
+        console.log('Cotización seleccionada:', selectedQuote.data);
+        // Aquí puedes abrir otro diálogo o crear la orden a partir de la cotización
+        setShowQuotesDialog(false);
+    };
+
+    const footerContent = (
+        <div className="flex justify-content-end gap-2">
+            <Button label="Cancelar" icon="pi pi-times" text onClick={() => setShowQuotesDialog(false)} />
+            <Button
+                label="Ordenar"
+                icon="pi pi-shopping-cart"
+                disabled={!selectedQuote}
+                onClick={handleOrder}
+            />
+        </div>
+    );
 
     return (
-        <> {/* <-- INICIO DEL FRAGMENT */}
-            <Toast ref={toast} /> {/* <-- TOAST AÑADIDO */}
-
+        <>
+            <Toast ref={toast} />
             <div className="card">
-
                 <div className="flex flex-wrap gap-2 mb-4">
                     <Button label="Lista de clientes" icon="pi pi-users" outlined onClick={() => setShowClientsDialog(true)} />
                     <Button label="Lista de cotizaciones" icon="pi pi-list" outlined onClick={() => setShowQuotesDialog(true)} />
@@ -422,17 +447,29 @@ const Counter = () => {
                 </Dialog>
 
                 {/* Modal de Cotizaciones */}
-                <Dialog header="Lista de Cotizaciones" visible={showQuotesDialog} style={{ width: '75vw', minWidth: '350px' }} modal onHide={() => setShowQuotesDialog(false)}>
+                <Dialog
+                    header="Lista de Cotizaciones"
+                    visible={showQuotesDialog}
+                    style={{ width: '75vw', minWidth: '350px' }}
+                    modal
+                    footer={footerContent}
+                    onHide={() => setShowQuotesDialog(false)}
+                >
                     <TreeTable
                         value={quoteTree}
                         paginator
                         rows={10}
                         rowsPerPageOptions={[5, 10, 25]}
                     >
-                        <Column field="name" header="Diseñador" expander style={{ width: '30%' }} />
-                        <Column field="cliente" header="Cliente" style={{ width: '30%' }} />
-                        <Column field="total" header="Total" body={treeTotalBodyTemplate} style={{ width: '20%' }} />
+                        <Column field="name" header="Diseñador" expander style={{ width: '25%' }} />
+                        <Column field="cliente" header="Cliente" style={{ width: '25%' }} />
+                        <Column field="total" header="Total" style={{ width: '20%' }} />
                         <Column field="estatus" header="Estatus" style={{ width: '20%' }} />
+                        <Column
+                            header=""
+                            body={selectButtonTemplate}
+                            style={{ width: '10%', textAlign: 'center' }}
+                        />
                     </TreeTable>
                 </Dialog>
 
