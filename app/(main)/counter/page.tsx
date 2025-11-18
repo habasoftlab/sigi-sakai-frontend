@@ -14,6 +14,7 @@ import { Dialog } from 'primereact/dialog';
 import { TreeTable } from 'primereact/treetable';
 import { TreeNode } from 'primereact/treenode';
 import { Toast } from 'primereact/toast';
+import Link from 'next/link';
 
 
 interface QuoteItem {
@@ -125,7 +126,6 @@ const Counter = () => {
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
     const [quoteItems, setQuoteItems] = useState<any[]>([]);
-    const [showClientsDialog, setShowClientsDialog] = useState(false);
     const [showQuotesDialog, setShowQuotesDialog] = useState(false);
     const [showOrdersDialog, setShowOrdersDialog] = useState(false);
     const [showQuantityDialog, setShowQuantityDialog] = useState(false);
@@ -390,7 +390,12 @@ const Counter = () => {
             <Toast ref={toast} />
             <div className="card">
                 <div className="flex flex-wrap gap-2 mb-4">
-                    <Button label="Lista de clientes" icon="pi pi-users" outlined onClick={() => setShowClientsDialog(true)} />
+                    <Link href="/listclient" passHref legacyBehavior>
+                        <a className="p-button p-component p-button-outlined p-button-icon-left">
+                            <i className="pi pi-users p-button-icon p-button-icon-left"></i>
+                            <span className="p-button-label">Lista de clientes</span>
+                        </a>
+                    </Link>
                     <Button label="Lista de cotizaciones" icon="pi pi-list" outlined onClick={() => setShowQuotesDialog(true)} />
                     <Button label="Lista de ordenes" icon="pi pi-inbox" outlined onClick={() => setShowOrdersDialog(true)} />
                 </div>
@@ -435,16 +440,6 @@ const Counter = () => {
                         disabled={quoteItems.length === 0}
                     />
                 </div>
-
-                {/* Modal de Clientes */}
-                <Dialog header="Lista de Clientes" visible={showClientsDialog} style={{ width: '75vw', minWidth: '350px' }} modal onHide={() => setShowClientsDialog(false)}>
-                    <DataTable value={dummyClients} paginator rows={5}>
-                        <Column field="name" header="Nombre" filter sortable />
-                        <Column field="email" header="Correo" filter sortable />
-                        <Column field="phone" header="Teléfono" sortable />
-                        <Column field="rfc" header="RFC" filter sortable />
-                    </DataTable>
-                </Dialog>
 
                 {/* Modal de Cotizaciones */}
                 <Dialog
@@ -560,7 +555,6 @@ const Counter = () => {
                         </div>
                     </div>
                 </Dialog>
-
 
                 {/* --- MODAL: Asignar Cliente--- */}
                 <Dialog
