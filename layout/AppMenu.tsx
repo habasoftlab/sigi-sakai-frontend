@@ -45,9 +45,14 @@ const AppMenu = () => {
                     to: '/pages/crud'
                 },
                 {
-                    label: 'Estatus Orden',
+                    label: 'Estatus orden',
                     icon: 'pi pi-fw pi-calendar',
                     to: '/timeline'
+                },
+                {
+                    label: 'Lista de clientes',
+                    icon: 'pi pi-fw pi-book',
+                    to: '/listclient'
                 },
             ]
         }
