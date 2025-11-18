@@ -45,9 +45,9 @@ const AppMenu = () => {
                     to: '/pages/crud'
                 },
                 {
-                    label: 'Timeline',
+                    label: 'Estatus Orden',
                     icon: 'pi pi-fw pi-calendar',
-                    to: '/pages/timeline'
+                    to: '/timeline'
                 },
             ]
         }
