@@ -7,6 +7,7 @@ import { DataTable } from 'primereact/datatable';
 import React, { useContext, useEffect, useState } from 'react';
 import { LayoutContext } from '../../layout/context/layoutcontext';
 import { ChartData, ChartOptions } from 'chart.js';
+import Link from 'next/link';
 
 const lineDataIng: ChartData = {
     labels: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio'],
@@ -245,7 +246,7 @@ const Dashboard = () => {
                     </div>
                 </div>
             </div>
-            
+
             <div className="col-24 xl:col-12">
                 <div className="card">
                     <h5>Ordenes</h5>
@@ -257,9 +258,15 @@ const Dashboard = () => {
                         <Column
                             header="Detalle"
                             style={{ width: '50%' }}
-                            body={() => (
+                            body={(rowData) => ( // <-- 2. OBTENER EL rowData DE LA FILA
                                 <>
-                                    <Button icon="pi pi-search" text />
+                                    {/* 3. ENVOLVER EL BOTÓN EN UN LINK */}
+                                    <Link href={`/timeline?id=${rowData.id}`} passHref legacyBehavior>
+                                        {/* 4. Usar una <a> con clases de PrimeReact */}
+                                        <a className="p-button p-component p-button-text p-button-icon-only">
+                                            <i className="pi pi-search"></i>
+                                        </a>
+                                    </Link>
                                 </>
                             )}
                         />
