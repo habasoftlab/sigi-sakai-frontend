@@ -7,11 +7,10 @@ import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
-import { Dropdown } from 'primereact/dropdown'; // <-- IMPORTAR DROPDOWN
+import { Dropdown } from 'primereact/dropdown';
 import { FilterMatchMode } from 'primereact/api';
 import Link from 'next/link';
 
-// --- INTERFAZ DEL CLIENTE ---
 interface Client {
     id: string | null;
     name: string;
@@ -22,7 +21,6 @@ interface Client {
     cp: string;
 }
 
-// --- DATOS INICIALES ---
 const initialClients: Client[] = [
     { id: 'C001', name: 'Juan Pérez', email: 'juan.perez@email.com', phone: '5512345678', rfc: 'PEPJ800101ABC', cfdi: 'G03', cp: '06500' },
     { id: 'C002', name: 'Sofía Herrera', email: 'sofia.herrera@email.com', phone: '5587654321', rfc: 'HESF900202XYZ', cfdi: 'G01', cp: '03100' },
@@ -48,8 +46,6 @@ const ListClientsPage = () => {
     const [globalFilterValue, setGlobalFilterValue] = useState('');
 
     const toast = useRef<Toast>(null);
-
-    // --- FUNCIONES CRUD ---
 
     const openNew = () => {
         setClient({ id: null, name: '', email: '', phone: '', rfc: '', cfdi: '', cp: '' });
@@ -109,7 +105,6 @@ const ListClientsPage = () => {
         toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Cliente eliminado', life: 3000 });
     };
 
-    // --- FILTRADO ---
     const onGlobalFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         let _filters = { ...filters };
@@ -119,7 +114,6 @@ const ListClientsPage = () => {
         setGlobalFilterValue(value);
     };
 
-    // --- UTILIDADES ---
     const findIndexById = (id: string) => {
         let index = -1;
         for (let i = 0; i < clients.length; i++) {
@@ -135,17 +129,13 @@ const ListClientsPage = () => {
         return 'C' + Math.floor(Math.random() * 10000).toString();
     };
 
-    // --- MANEJO DE INPUTS (ACTUALIZADO PARA DROPDOWN) ---
     const onInputChange = (e: any, name: string) => {
-        // Para Dropdown el valor viene en e.value, para InputText en e.target.value
         const val = (e.target && e.target.value) || e.value || '';
         let _client = { ...client };
         // @ts-ignore
         _client[name] = val;
         setClient(_client);
     };
-
-    // --- RENDERIZADO ---
 
     const header = (
         <div className="flex flex-column md:flex-row md:align-items-center justify-content-between gap-2">
@@ -159,12 +149,6 @@ const ListClientsPage = () => {
                 />
             </span>
             <div className="flex gap-2">
-                <Link href="/cotizador" passHref legacyBehavior>
-                    <a className="p-button p-component p-button-outlined p-button-secondary">
-                        <i className="pi pi-arrow-left p-button-icon p-button-icon-left"></i>
-                        <span className="p-button-label">Regresar</span>
-                    </a>
-                </Link>
                 <Button label="Agregar cliente" icon="pi pi-plus" onClick={openNew} />
             </div>
         </div>
@@ -197,7 +181,15 @@ const ListClientsPage = () => {
         <div className="card">
             <Toast ref={toast} />
 
-            <h2 className="mb-4">Lista de clientes</h2>
+            <div className="flex justify-content-between align-items-center">
+                <h2>Lista de Clientes</h2>
+                <Link href="/counter" passHref legacyBehavior>
+                    <a className="p-button p-component p-button-text">
+                        <i className="pi pi-arrow-left p-button-icon p-button-icon-left"></i>
+                        <span className="p-button-label">Volver</span>
+                    </a>
+                </Link>
+            </div>
 
             <DataTable
                 value={clients}
@@ -258,7 +250,6 @@ const ListClientsPage = () => {
                 </div>
             </Dialog>
 
-            {/* --- DIALOGO: Eliminar Cliente --- */}
             <Dialog visible={deleteClientDialog} style={{ width: '32rem' }} breakpoints={{ '960px': '75vw', '641px': '90vw' }} header="Confirmar" modal footer={deleteClientDialogFooter} onHide={hideDeleteClientDialog}>
                 <div className="confirmation-content">
                     <i className="pi pi-exclamation-triangle mr-3" style={{ fontSize: '2rem' }} />
