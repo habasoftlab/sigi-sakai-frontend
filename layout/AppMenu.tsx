@@ -16,6 +16,7 @@ const AppMenu = () => {
             items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/' },
                     { label: 'Mostrador', icon: 'pi pi-fw pi-desktop', to: '/counter' },
                     { label: 'Lista de Cotizaciones', icon: 'pi pi-fw pi-list', to: '/listquote' },
+                    { label: 'Lista de Ordenes', icon: 'pi pi-fw pi-wallet', to: '/listorder' },
             ]
         },
         {
