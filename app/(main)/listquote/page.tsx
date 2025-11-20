@@ -5,16 +5,7 @@ import { TreeTable } from 'primereact/treetable';
 import { TreeNode } from 'primereact/treenode';
 import { Column } from 'primereact/column';
 import Link from 'next/link';
-
-
-const dummyQuotes = [
-    { id: 'COT-001', cliente: 'Juan Pérez', total: 225.00, estatus: 'Activa', designer: 'Ana Torres' },
-    { id: 'COT-002', cliente: 'Sofía Herrera', total: 450.00, estatus: 'Activa', designer: 'Ana Torres' },
-    { id: 'COT-003', cliente: 'Carlos Ramírez', total: 1575.75, estatus: 'Activa', designer: 'Carlos Ramírez' },
-    { id: 'COT-004', cliente: 'Luisa Gómez', total: 640.20, estatus: 'Activa', designer: 'Luisa Gómez' },
-    { id: 'COT-005', cliente: 'Mario Sánchez', total: 2100.00, estatus: 'Activa', designer: 'Sofía Herrera' },
-    { id: 'COT-006', cliente: 'Laura Fernández', total: 850.90, estatus: 'Activa', designer: 'Sofía Herrera' },
-];
+import { dummyQuotes } from '@/app/api/mockData';
 
 const ListQuotePage = () => {
     const [quoteTree, setQuoteTree] = useState<TreeNode[]>([]);

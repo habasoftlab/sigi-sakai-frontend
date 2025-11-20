@@ -4,10 +4,14 @@ import { Button } from 'primereact/button';
 import { Chart } from 'primereact/chart';
 import { Column } from 'primereact/column';
 import { DataTable } from 'primereact/datatable';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useRef } from 'react';
 import { LayoutContext } from '../../layout/context/layoutcontext';
 import { ChartData, ChartOptions } from 'chart.js';
 import Link from 'next/link';
+import { Dialog } from 'primereact/dialog';
+import { Dropdown } from 'primereact/dropdown';
+import { Toast } from 'primereact/toast';
+import { dummyOrders } from '../api/mockData';
 
 const lineDataIng: ChartData = {
     labels: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio'],
@@ -45,42 +49,27 @@ const lineDataEgr: ChartData = {
     ]
 };
 
-const products = [
-    {
-        id: 'ORD-001',
-        designer: 'María López',
-        price: 2500,
-        client: 'Carlos Mendoza',
-    },
-    {
-        id: 'ORD-002',
-        designer: 'Jorge Pérez',
-        price: 3800,
-        client: 'Ana García',
-    },
-    {
-        id: 'ORD-003',
-        designer: 'Lucía Hernández',
-        price: 4200,
-        client: 'Empresa Creativa SA',
-    },
-    {
-        id: 'ORD-004',
-        designer: 'Ismael Torres',
-        price: 3100,
-        client: 'Laura Ortiz',
-    },
-    {
-        id: 'ORD-005',
-        designer: 'Fernanda Ruiz',
-        price: 2900,
-        client: 'Estudio Blanco',
-    },
+// --- CATÁLOGO DE RAZONES DE CANCELACIÓN ---
+const cancellationReasons = [
+    { label: 'Desinterés por parte del cliente', value: 'desinteres' },
+    { label: 'Cliente desistió del servicio', value: 'desistio' },
+    { label: 'Precio no competitivo', value: 'precio' },
+    { label: 'Tiempo de entrega tardío', value: 'tiempo' },
+    { label: 'Sin pagos del cliente', value: 'sin_pagos' }
 ];
 
 const Dashboard = () => {
     const [lineOptions, setLineOptions] = useState<ChartOptions>({});
     const { layoutConfig } = useContext(LayoutContext);
+    const toast = useRef<Toast>(null);
+
+    // Estado de productos para permitir borrado
+    const [products, setProducts] = useState(dummyOrders);
+
+    // --- ESTADOS PARA LA CANCELACIÓN ---
+    const [cancelDialogVisible, setCancelDialogVisible] = useState(false);
+    const [orderToCancel, setOrderToCancel] = useState<any>(null);
+    const [selectedReason, setSelectedReason] = useState<any>(null);
 
     const applyLightTheme = () => {
         const lineOptions: ChartOptions = {
@@ -155,14 +144,61 @@ const Dashboard = () => {
     }, [layoutConfig.colorScheme]);
 
     const formatCurrency = (value: number) => {
-        return value?.toLocaleString('en-US', {
+        return value?.toLocaleString('es-MX', {
             style: 'currency',
-            currency: 'USD'
+            currency: 'MXN'
         });
     };
 
+    const confirmCancelOrder = (order: any) => {
+        setOrderToCancel(order);
+        setSelectedReason(null);
+        setCancelDialogVisible(true);
+    };
+
+    const hideCancelDialog = () => {
+        setCancelDialogVisible(false);
+        setOrderToCancel(null);
+        setSelectedReason(null);
+    };
+
+    const submitCancellation = () => {
+        if (selectedReason) {
+            // 1. Eliminar orden de la lista visual
+            const _products = products.filter(val => val.id !== orderToCancel.id);
+            setProducts(_products);
+
+            // 2. Buscar la etiqueta legible de la razón seleccionada
+            const reasonLabel = cancellationReasons.find(r => r.value === selectedReason)?.label;
+
+            toast.current?.show({
+                severity: 'info',
+                summary: 'Orden Cancelada',
+                detail: `La orden ${orderToCancel.id} ha sido cancelada. Razón: ${reasonLabel}`,
+                life: 3000
+            });
+
+            hideCancelDialog();
+        } else {
+            toast.current?.show({
+                severity: 'warn',
+                summary: 'Atención',
+                detail: 'Debes seleccionar una razón para cancelar.',
+                life: 3000
+            });
+        }
+    };
+
+    const cancelDialogFooter = (
+        <>
+            <Button label="No, regresar" icon="pi pi-times" text onClick={hideCancelDialog} />
+            <Button label="Sí, cancelar orden" icon="pi pi-check" severity="danger" onClick={submitCancellation} autoFocus />
+        </>
+    );
+
     return (
         <div className="grid">
+            <Toast ref={toast} />
 
             <div className="col-24 lg:col-12 xl:col-6">
                 <div className="card mb-0">
@@ -171,9 +207,15 @@ const Dashboard = () => {
                             <span className="block text-500 font-medium mb-3">Cotizaciones</span>
                             <div className="text-900 font-medium text-xl">28441</div>
                         </div>
-                        <div className="flex align-items-center justify-content-center bg-cyan-100 border-round" style={{ width: '2.5rem', height: '2.5rem' }}>
-                            <i className="pi pi-file text-cyan-500 text-xl" />
-                        </div>
+                        {/* ENLACE A LISTA DE COTIZACIONES */}
+                        <Link href="/listquote">
+                            <div
+                                className="flex align-items-center justify-content-center bg-cyan-100 border-round cursor-pointer hover:bg-cyan-200 transition-duration-200"
+                                style={{ width: '2.5rem', height: '2.5rem' }}
+                            >
+                                <i className="pi pi-file text-cyan-500 text-xl" />
+                            </div>
+                        </Link>
                     </div>
                     <span className="text-green-500 font-medium">520 </span>
                     <span className="text-500">nuevas cotizaciones</span>
@@ -187,9 +229,15 @@ const Dashboard = () => {
                             <span className="block text-500 font-medium mb-3">Ordenes</span>
                             <div className="text-900 font-medium text-xl">152</div>
                         </div>
-                        <div className="flex align-items-center justify-content-center bg-blue-100 border-round" style={{ width: '2.5rem', height: '2.5rem' }}>
-                            <i className="pi pi-shopping-cart text-blue-500 text-xl" />
-                        </div>
+                        {/* ENLACE A LISTA DE ÓRDENES */}
+                        <Link href="/listorder">
+                            <div
+                                className="flex align-items-center justify-content-center bg-blue-100 border-round cursor-pointer hover:bg-blue-200 transition-duration-200"
+                                style={{ width: '2.5rem', height: '2.5rem' }}
+                            >
+                                <i className="pi pi-shopping-cart text-blue-500 text-xl" />
+                            </div>
+                        </Link>
                     </div>
                     <span className="text-green-500 font-medium">24+ nuevos </span>
                     <span className="text-500">desde la ultima visita</span>
@@ -253,26 +301,65 @@ const Dashboard = () => {
                     <DataTable value={products} rows={5} paginator responsiveLayout="scroll">
                         <Column field="id" header="Clave" sortable style={{ width: '30%' }} />
                         <Column field="designer" header="Diseñador" sortable style={{ width: '30%' }} />
-                        <Column field="price" header="Precio" sortable style={{ width: '20%' }} body={(data) => formatCurrency(data.price)} />
-                        <Column field="client" header="Cliente" sortable style={{ width: '45%' }} />
+                        <Column field="total" header="Total" sortable style={{ width: '20%' }} body={(data) => formatCurrency(data.total)} />
+                        <Column field="cliente" header="Cliente" sortable style={{ width: '45%' }} />
+                        <Column field="estatus" header="Estatus" sortable style={{ width: '45%' }} />
                         <Column
-                            header="Detalle"
+                            header=""
                             style={{ width: '50%' }}
-                            body={(rowData) => ( // <-- 2. OBTENER EL rowData DE LA FILA
-                                <>
-                                    {/* 3. ENVOLVER EL BOTÓN EN UN LINK */}
+                            body={(rowData) => (
+                                <div className="flex gap-2">
                                     <Link href={`/timeline?id=${rowData.id}`} passHref legacyBehavior>
-                                        {/* 4. Usar una <a> con clases de PrimeReact */}
-                                        <a className="p-button p-component p-button-text p-button-icon-only">
+                                        <a className="p-button p-component p-button-text p-button-icon-only p-button-rounded p-button-info">
                                             <i className="pi pi-search"></i>
                                         </a>
                                     </Link>
-                                </>
+
+                                    <Button
+                                        icon="pi pi-times"
+                                        className="p-button-text p-button-rounded p-button-danger"
+                                        onClick={() => confirmCancelOrder(rowData)}
+                                    />
+                                </div>
                             )}
                         />
                     </DataTable>
                 </div>
             </div>
+
+            {/* --- MODAL DE CONFIRMACIÓN DE CANCELACIÓN --- */}
+            <Dialog
+                visible={cancelDialogVisible}
+                style={{ width: '450px' }}
+                header="Confirmar Cancelación"
+                modal
+                footer={cancelDialogFooter}
+                onHide={hideCancelDialog}
+            >
+                <div className="flex flex-column align-items-center justify-content-center">
+                    <i className="pi pi-exclamation-triangle mr-3" style={{ fontSize: '2rem', color: 'var(--red-500)' }} />
+                    {orderToCancel && (
+                        <div className="mt-3 text-center">
+                            <span className="font-bold block mb-3">¿Estás seguro de que deseas cancelar la orden {orderToCancel.id}?</span>
+                            <p className="mb-3">Esta acción no se puede deshacer.</p>
+
+                            <div className="field w-full text-left">
+                                <label htmlFor="reason" className="block font-bold mb-2">Razón de cancelación</label>
+                                <Dropdown
+                                    id="reason"
+                                    value={selectedReason}
+                                    options={cancellationReasons}
+                                    onChange={(e) => setSelectedReason(e.value)}
+                                    placeholder="Seleccione una razón"
+                                    className="w-full"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </Dialog>
         </div>
     );
 };
