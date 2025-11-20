@@ -15,7 +15,7 @@ const AppMenu = () => {
             label: 'Inicio',
             items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/' },
                     { label: 'Mostrador', icon: 'pi pi-fw pi-desktop', to: '/counter' },
-                    { label: 'Lista de Cotizaciones', icon: 'pi pi-fw pi-list', to: '/listquote' },
+                    { label: 'Lista de Cotizaciones', icon: 'pi pi-fw pi-file', to: '/listquote' },
                     { label: 'Lista de Ordenes', icon: 'pi pi-fw pi-wallet', to: '/listorder' },
             ]
         },
@@ -39,11 +39,6 @@ const AppMenu = () => {
                             to: '/auth/register'
                         },
                     ]
-                },
-                {
-                    label: 'CRUD',
-                    icon: 'pi pi-fw pi-pencil',
-                    to: '/pages/crud'
                 },
                 {
                     label: 'Estatus orden',

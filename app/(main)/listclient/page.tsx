@@ -8,8 +8,10 @@ import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
+import { Divider } from 'primereact/divider';
 import { FilterMatchMode } from 'primereact/api';
 import Link from 'next/link';
+import { cfdiOptions, dummyClients, regimenFiscalOptions } from '@/app/api/mockData';
 
 interface Client {
     id: string | null;
@@ -18,26 +20,20 @@ interface Client {
     phone: string;
     rfc: string;
     cfdi: string;
+    regimenFiscal: string; // --- NUEVO CAMPO
     cp: string;
 }
 
-const initialClients: Client[] = [
-    { id: 'C001', name: 'Juan Pérez', email: 'juan.perez@email.com', phone: '5512345678', rfc: 'PEPJ800101ABC', cfdi: 'G03', cp: '06500' },
-    { id: 'C002', name: 'Sofía Herrera', email: 'sofia.herrera@email.com', phone: '5587654321', rfc: 'HESF900202XYZ', cfdi: 'G01', cp: '03100' },
-    { id: 'C003', name: 'Carlos Ramírez', email: 'carlos.ramirez@email.com', phone: '5555555555', rfc: 'RACJ750303LMN', cfdi: 'P01', cp: '11520' }
-];
-
-const cfdiOptions = [
-    { label: 'Gastos en general', value: 'G01' },
-    { label: 'Adquisición de mercancías', value: 'G02' },
-    { label: 'Honorarios profesionales', value: 'G03' }
-];
-
 const ListClientsPage = () => {
-    const [clients, setClients] = useState<Client[]>(initialClients);
+    const initializedClients = dummyClients.map(c => ({
+        ...c,
+        regimenFiscal: (c as any).regimenFiscal || ''
+    }));
+
+    const [clients, setClients] = useState<Client[]>(initializedClients);
     const [clientDialog, setClientDialog] = useState(false);
     const [deleteClientDialog, setDeleteClientDialog] = useState(false);
-    const [client, setClient] = useState<Client>({ id: null, name: '', email: '', phone: '', rfc: '', cfdi: '', cp: '' });
+    const [client, setClient] = useState<Client>({ id: null, name: '', email: '', phone: '', rfc: '', cfdi: '', regimenFiscal: '', cp: '' });
     const [submitted, setSubmitted] = useState(false);
 
     const [filters, setFilters] = useState({
@@ -48,7 +44,7 @@ const ListClientsPage = () => {
     const toast = useRef<Toast>(null);
 
     const openNew = () => {
-        setClient({ id: null, name: '', email: '', phone: '', rfc: '', cfdi: '', cp: '' });
+        setClient({ id: null, name: '', email: '', phone: '', rfc: '', cfdi: '', regimenFiscal: '', cp: '' });
         setSubmitted(false);
         setClientDialog(true);
     };
@@ -70,12 +66,10 @@ const ListClientsPage = () => {
             let _client = { ...client };
 
             if (client.id) {
-                // Actualizar existente
                 const index = findIndexById(client.id);
                 _clients[index] = _client;
                 toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Cliente actualizado', life: 3000 });
             } else {
-                // Crear nuevo
                 _client.id = createId();
                 _clients.push(_client);
                 toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Cliente creado', life: 3000 });
@@ -83,7 +77,7 @@ const ListClientsPage = () => {
 
             setClients(_clients);
             setClientDialog(false);
-            setClient({ id: null, name: '', email: '', phone: '', rfc: '', cfdi: '', cp: '' });
+            setClient({ id: null, name: '', email: '', phone: '', rfc: '', cfdi: '', regimenFiscal: '', cp: '' });
         }
     };
 
@@ -101,7 +95,7 @@ const ListClientsPage = () => {
         let _clients = clients.filter((val) => val.id !== client.id);
         setClients(_clients);
         setDeleteClientDialog(false);
-        setClient({ id: null, name: '', email: '', phone: '', rfc: '', cfdi: '', cp: '' });
+        setClient({ id: null, name: '', email: '', phone: '', rfc: '', cfdi: '', regimenFiscal: '', cp: '' });
         toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Cliente eliminado', life: 3000 });
     };
 
@@ -171,22 +165,22 @@ const ListClientsPage = () => {
     );
 
     const clientDialogFooter = (
-        <React.Fragment>
+        <div className="pt-2">
             <Button label="Cancelar" icon="pi pi-times" text onClick={hideDialog} />
             <Button label="Guardar" icon="pi pi-check" text onClick={saveClient} />
-        </React.Fragment>
+        </div>
     );
 
     return (
         <div className="card">
             <Toast ref={toast} />
 
-            <div className="flex justify-content-between align-items-center">
-                <h2>Lista de Clientes</h2>
+            <div className="flex justify-content-between align-items-center mb-4">
+                <h2 className="m-0">Lista de Clientes</h2>
                 <Link href="/counter" passHref legacyBehavior>
-                    <a className="p-button p-component p-button-text">
-                        <i className="pi pi-arrow-left p-button-icon p-button-icon-left"></i>
-                        <span className="p-button-label">Volver</span>
+                    <a className="p-button p-component p-button-text p-button-plain">
+                        <i className="pi pi-arrow-left mr-2"></i>
+                        <span className="font-bold">Volver</span>
                     </a>
                 </Link>
             </div>
@@ -197,62 +191,109 @@ const ListClientsPage = () => {
                 rows={10}
                 header={header}
                 filters={filters}
-                globalFilterFields={['name', 'email', 'phone', 'rfc', 'cfdi', 'cp']}
+                globalFilterFields={['name', 'email', 'phone', 'rfc', 'cfdi', 'regimenFiscal', 'cp']}
                 emptyMessage="No se encontraron clientes."
                 responsiveLayout="scroll"
+                stripedRows
             >
                 <Column field="name" header="Nombre" sortable style={{ minWidth: '12rem' }}></Column>
                 <Column field="email" header="Correo" sortable style={{ minWidth: '12rem' }}></Column>
                 <Column field="phone" header="Teléfono" sortable style={{ minWidth: '10rem' }}></Column>
                 <Column field="rfc" header="R.F.C." sortable style={{ minWidth: '10rem' }}></Column>
+                <Column field="regimenFiscal" header="Régimen" sortable style={{ minWidth: '12rem' }}></Column>
                 <Column field="cfdi" header="C.F.D.I." sortable style={{ minWidth: '8rem' }}></Column>
                 <Column field="cp" header="C.P." sortable style={{ minWidth: '6rem' }}></Column>
                 <Column body={actionBodyTemplate} exportable={false} style={{ minWidth: '8rem' }}></Column>
             </DataTable>
 
-            {/* --- DIALOGO: Agregar/Editar Cliente (ACTUALIZADO) --- */}
-            <Dialog visible={clientDialog} style={{ width: '40vw', minWidth: '450px' }} header="Detalles del Cliente" modal className="p-fluid" footer={clientDialogFooter} onHide={hideDialog}>
-                <div className="field">
-                    <label htmlFor="name" className="font-bold">Nombre*</label>
-                    <InputText id="name" value={client.name} onChange={(e) => onInputChange(e, 'name')} required autoFocus className={classNames({ 'p-invalid': submitted && !client.name })} />
-                    {submitted && !client.name && <small className="p-error">El nombre es obligatorio.</small>}
-                </div>
-                <div className="field">
-                    <label htmlFor="email" className="font-bold">Correo Electrónico*</label>
-                    <InputText id="email" value={client.email} onChange={(e) => onInputChange(e, 'email')} required className={classNames({ 'p-invalid': submitted && !client.email })} />
-                </div>
-                <div className="field">
-                    <label htmlFor="phone" className="font-bold">Teléfono*</label>
-                    <InputText id="phone" value={client.phone} onChange={(e) => onInputChange(e, 'phone')} required />
-                </div>
-
-                <div className="formgrid grid">
-                    <div className="field col-12 md:col-6">
-                        <label htmlFor="rfc" className="font-bold">R.F.C.</label>
-                        <InputText id="rfc" value={client.rfc} onChange={(e) => onInputChange(e, 'rfc')} />
+            <Dialog
+                visible={clientDialog}
+                style={{ width: '50vw', minWidth: '500px' }}
+                header="Detalles del Cliente"
+                modal
+                className="p-fluid"
+                footer={clientDialogFooter}
+                onHide={hideDialog}
+            >
+                <div className="p-fluid formgrid grid pt-2">
+                    <div className="field col-12 mb-2">
+                        <label htmlFor="name" className="font-bold block mb-1">Nombre / Razón Social*</label>
+                        <InputText
+                            id="name"
+                            value={client.name}
+                            onChange={(e) => onInputChange(e, 'name')}
+                            required
+                            autoFocus
+                            className={classNames({ 'p-invalid': submitted && !client.name })}
+                        />
+                        {submitted && !client.name && <small className="p-error block">El nombre es obligatorio.</small>}
                     </div>
-                    <div className="field col-12 md:col-6">
-                        <label htmlFor="cfdi" className="font-bold">Uso del C.F.D.I.</label>
-                        {/* DROPDOWN PARA CFDI */}
+                    <div className="field col-12 md:col-6 mb-2">
+                        <label htmlFor="email" className="font-bold block mb-1">Correo Electrónico</label>
+                        <InputText
+                            id="email"
+                            value={client.email}
+                            onChange={(e) => onInputChange(e, 'email')}
+                        />
+                    </div>
+                    <div className="field col-12 md:col-6 mb-2">
+                        <label htmlFor="phone" className="font-bold block mb-1">Teléfono</label>
+                        <InputText
+                            id="phone"
+                            value={client.phone}
+                            onChange={(e) => onInputChange(e, 'phone')}
+                        />
+                    </div>
+                    <div className="col-12">
+                        <Divider align="left" className="my-2">
+                            <span className="p-tag p-tag-rounded text-xs">Datos Fiscales</span>
+                        </Divider>
+                    </div>
+                    <div className="field col-12 md:col-4 mb-2">
+                        <label htmlFor="rfc" className="font-bold block mb-1">R.F.C.</label>
+                        <InputText
+                            id="rfc"
+                            value={client.rfc}
+                            onChange={(e) => onInputChange(e, 'rfc')}
+                        />
+                    </div>
+                    <div className="field col-12 md:col-8 mb-2">
+                        <label htmlFor="regimenFiscal" className="font-bold block mb-1">Régimen Fiscal</label>
+                        <Dropdown
+                            id="regimenFiscal"
+                            value={client.regimenFiscal}
+                            options={regimenFiscalOptions}
+                            onChange={(e) => onInputChange(e, 'regimenFiscal')}
+                            placeholder="Seleccione régimen"
+                            className="w-full"
+                            filter
+                        />
+                    </div>
+                    <div className="field col-12 md:col-8 mb-0">
+                        <label htmlFor="cfdi" className="font-bold block mb-1">Uso del C.F.D.I.</label>
                         <Dropdown
                             id="cfdi"
                             value={client.cfdi}
                             options={cfdiOptions}
                             onChange={(e) => onInputChange(e, 'cfdi')}
-                            placeholder="Seleccione un uso"
+                            placeholder="Seleccione uso"
                             className="w-full"
                         />
                     </div>
-                </div>
-                <div className="field">
-                    <label htmlFor="cp" className="font-bold">Código Postal</label>
-                    <InputText id="cp" value={client.cp} onChange={(e) => onInputChange(e, 'cp')} />
+                    <div className="field col-12 md:col-4 mb-0">
+                        <label htmlFor="cp" className="font-bold block mb-1">Código Postal</label>
+                        <InputText
+                            id="cp"
+                            value={client.cp}
+                            onChange={(e) => onInputChange(e, 'cp')}
+                        />
+                    </div>
                 </div>
             </Dialog>
 
             <Dialog visible={deleteClientDialog} style={{ width: '32rem' }} breakpoints={{ '960px': '75vw', '641px': '90vw' }} header="Confirmar" modal footer={deleteClientDialogFooter} onHide={hideDeleteClientDialog}>
                 <div className="confirmation-content">
-                    <i className="pi pi-exclamation-triangle mr-3" style={{ fontSize: '2rem' }} />
+                    <i className="pi pi-exclamation-triangle mr-3 text-yellow-500" style={{ fontSize: '2rem' }} />
                     {client && (
                         <span>
                             ¿Estás seguro de que quieres eliminar a <b>{client.name}</b>?
