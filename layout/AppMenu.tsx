@@ -13,7 +13,11 @@ const AppMenu = () => {
     const model: AppMenuItem[] = [
         {
             label: 'Inicio',
-            items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/' }]
+            items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/' },
+                    { label: 'Mostrador', icon: 'pi pi-fw pi-desktop', to: '/counter' },
+                    { label: 'Lista de Cotizaciones', icon: 'pi pi-fw pi-file', to: '/listquote' },
+                    { label: 'Lista de Ordenes', icon: 'pi pi-fw pi-wallet', to: '/listorder' },
+            ]
         },
         {
             label: 'Paginas',
@@ -21,25 +25,35 @@ const AppMenu = () => {
             to: '/pages',
             items: [
                 {
-                    label: 'Auth',
+                    label: 'Autenticacion',
                     icon: 'pi pi-fw pi-user',
                     items: [
                         {
-                            label: 'Login',
+                            label: 'Inicio de sesion',
                             icon: 'pi pi-fw pi-sign-in',
                             to: '/auth/login'
+                        },
+                        {
+                            label: 'Registrar nuevo empleado',
+                            icon: 'pi pi-fw pi-user-plus',
+                            to: '/auth/register'
                         },
                     ]
                 },
                 {
-                    label: 'CRUD',
-                    icon: 'pi pi-fw pi-pencil',
-                    to: '/pages/crud'
+                    label: 'Estatus orden',
+                    icon: 'pi pi-fw pi-calendar',
+                    to: '/timeline'
                 },
                 {
-                    label: 'Timeline',
-                    icon: 'pi pi-fw pi-calendar',
-                    to: '/pages/timeline'
+                    label: 'Lista de clientes',
+                    icon: 'pi pi-fw pi-book',
+                    to: '/listclient'
+                },
+                {
+                    label: 'Lisa de Ordenes - Disenador',
+                    icon: 'pi pi-fw pi-palette',
+                    to: '/designerlist'
                 },
             ]
         }
