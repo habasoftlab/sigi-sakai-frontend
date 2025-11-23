@@ -50,6 +50,11 @@ const AppMenu = () => {
                     icon: 'pi pi-fw pi-book',
                     to: '/listclient'
                 },
+                {
+                    label: 'Lisa de Ordenes - Disenador',
+                    icon: 'pi pi-fw pi-palette',
+                    to: '/designerlist'
+                },
             ]
         }
     ];
