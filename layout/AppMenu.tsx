@@ -51,9 +51,14 @@ const AppMenu = () => {
                     to: '/listclient'
                 },
                 {
-                    label: 'Lisa de Ordenes - Disenador',
+                    label: 'Lista de Ordenes - Disenador',
                     icon: 'pi pi-fw pi-palette',
                     to: '/designerlist'
+                },
+                                {
+                    label: 'Lista de Ordenes - Jefe de Taller',
+                    icon: 'pi pi-fw pi-briefcase',
+                    to: '/workshoplist'
                 },
             ]
         }
