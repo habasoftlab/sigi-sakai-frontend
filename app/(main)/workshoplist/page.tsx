@@ -26,6 +26,7 @@ const WorkshopPage = () => {
     useEffect(() => {
         const enrichedOrders = dummyOrders.map((order, index) => {
             let status: WorkshopStatus = 'pending';
+            // Simulamos algunos estados iniciales variados
             if (index % 3 === 0) status = 'confirmed';
             else if (index % 3 === 1) status = 'delayed';
 
@@ -36,6 +37,22 @@ const WorkshopPage = () => {
 
     const formatCurrency = (value: number) => {
         return value.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+    };
+
+    // --- FUNCIÓN PARA SIMULAR CAMBIO DE ESTADO (DEMO) ---
+    const toggleWorkshopStatus = (id: string) => {
+        const updatedOrders = orders.map(order => {
+            if (order.id === id) {
+                // Ciclo: Pending -> Confirmed -> Delayed -> Pending
+                let newStatus: WorkshopStatus = 'pending';
+                if (order.workshopStatus === 'pending') newStatus = 'confirmed';
+                else if (order.workshopStatus === 'confirmed') newStatus = 'delayed';
+
+                return { ...order, workshopStatus: newStatus };
+            }
+            return order;
+        });
+        setOrders(updatedOrders);
     };
 
     // --- LÓGICA DE ESTADOS DE INSUMOS (Solo Iconos) ---
@@ -64,12 +81,23 @@ const WorkshopPage = () => {
         }
 
         return (
-            <div className="flex align-items-center justify-content-center">
+            <div className="flex align-items-center justify-content-center gap-2">
+                {/* Enlace al detalle de insumos */}
                 <Link href={`/workshopsupplies?id=${rowData.id}`} passHref legacyBehavior>
                     <a className="p-button p-component p-button-text p-button-rounded p-button-plain no-underline hover:surface-100 border-circle w-3rem h-3rem flex align-items-center justify-content-center transition-colors transition-duration-200" title={tooltip}>
                         <i className={`${icon} ${colorClass}`} style={{ fontSize: '1.5rem' }}></i>
                     </a>
                 </Link>
+
+                {/* Botón auxiliar para SIMULAR cambio de estado (útil para demos) */}
+                <Button
+                    icon="pi pi-sync"
+                    text
+                    rounded
+                    className="p-button-secondary p-button-sm w-2rem h-2rem"
+                    tooltip="Simular cambio de estado"
+                    onClick={() => toggleWorkshopStatus(rowData.id)}
+                />
             </div>
         );
     };
@@ -84,25 +112,33 @@ const WorkshopPage = () => {
 
         let tooltip = "Listo para imprimir";
         // Lupa Oscura (Azul fuerte) vs Lupa Clara (Gris transparente)
-        let iconClass = canPrint ? "text-yellow-600" : "text-500";
+        let iconClass = canPrint ? "text-yellow-500" : "text-800 opacity-30";
 
         if (!canPrint) {
             if (!designReady && !suppliesReady) tooltip = "Falta diseño e insumos";
             else if (!designReady) tooltip = "Diseño no listo";
-            else if (!suppliesReady) tooltip = "Faltan insumos";
+            else if (!suppliesReady) tooltip = "Faltan insumos (Click en la caja para revisar)";
         }
 
         return (
             <div className="flex justify-content-center">
-                <Button
-                    icon={`pi pi-search ${iconClass}`}
-                    className="p-button-rounded p-button-text hover:surface-100 border-circle w-3rem h-3rem"
-                    tooltip={tooltip}
-                    tooltipOptions={{ position: 'top' }}
-                    disabled={!canPrint}
-                    onClick={() => canPrint && window.open(rowData.imageUrl!, '_blank')}
-                    style={{ fontSize: '1.5rem' }} // Icono grande
-                />
+                {/* Corrección: Usamos Link si es posible, o Button deshabilitado si no */}
+                {canPrint ? (
+                    <Link href={`/workshopprint?id=${rowData.id}`} passHref legacyBehavior>
+                        <a className="p-button p-component p-button-rounded p-button-text hover:surface-100 border-circle w-3rem h-3rem flex align-items-center justify-content-center transition-colors transition-duration-200" title={tooltip}>
+                            <i className={`pi pi-search ${iconClass}`} style={{ fontSize: '1.5rem' }}></i>
+                        </a>
+                    </Link>
+                ) : (
+                    <Button
+                        icon={`pi pi-search ${iconClass}`}
+                        className="p-button-rounded p-button-text hover:surface-100 border-circle w-3rem h-3rem"
+                        tooltip={tooltip}
+                        tooltipOptions={{ position: 'top' }}
+                        disabled={true}
+                        style={{ fontSize: '1.5rem' }}
+                    />
+                )}
             </div>
         );
     };
@@ -154,22 +190,22 @@ const WorkshopPage = () => {
                         emptyMessage="No hay órdenes pendientes en taller."
                         tableStyle={{ minWidth: '60rem' }}
                     >
-                        <Column field="id" header="Clave" sortable style={{ width: '30%' }} className="font-bold" />
-                        <Column field="total" header="Precio" body={(data) => formatCurrency(data.total)} sortable style={{ width: '20%' }} />
-                        <Column field="cliente" header="Cliente" sortable style={{ width: '30%' }} />
+                        <Column field="id" header="Clave" sortable style={{ width: '20%' }} className="font-bold" />
+                        <Column field="total" header="Precio" body={(data) => formatCurrency(data.total)} sortable style={{ width: '15%' }} />
+                        <Column field="cliente" header="Cliente" sortable style={{ width: '25%' }} />
 
-                        {/* Columna de Insumos (Solo Iconos) */}
+                        {/* Columna de Insumos (Icono + Botón de Demo) */}
                         <Column
                             header="Revisión de insumos"
                             body={suppliesBodyTemplate}
-                            style={{ width: '10%', textAlign: 'center' }}
+                            style={{ width: '20%', textAlign: 'center' }}
                         />
 
                         {/* Columna de Diseño (Solo Lupa) */}
                         <Column
                             header="Ver diseño de impresión"
                             body={printDesignBodyTemplate}
-                            style={{ width: '10%', textAlign: 'center' }}
+                            style={{ width: '20%', textAlign: 'center' }}
                         />
                     </DataTable>
                 </div>

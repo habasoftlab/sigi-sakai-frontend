@@ -100,9 +100,7 @@ const SuppliesVerificationPage = () => {
 
     // Datos mockeados de materiales (Pág 24 del PDF)
     const mockMaterials = [
-        { nombre: 'Papel Couché 300g', cantidad: '200 pliegos' },
-        { nombre: 'Tinta Cyan/Magenta', cantidad: '2 cartuchos' },
-        { nombre: 'Acabado Laminado Mate', cantidad: '1 rollo' }
+        { nombre: 'Papel Couché 300g', cantidad: '2 pliegos' },
     ];
 
     return (
