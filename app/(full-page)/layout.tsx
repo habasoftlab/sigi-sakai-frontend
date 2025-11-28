@@ -7,7 +7,10 @@ interface SimpleLayoutProps {
 
 export const metadata: Metadata = {
     title: 'SIGI',
-    description: 'Sistema Integral de Gestion de Imprenta'
+    description: 'Sistema Integral de Gestion de Imprenta',
+    icons: {
+        icon: '/favicon.ico'
+    }
 };
 
 export default function SimpleLayout({ children }: SimpleLayoutProps) {
