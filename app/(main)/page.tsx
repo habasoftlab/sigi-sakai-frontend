@@ -12,6 +12,8 @@ import { Dialog } from 'primereact/dialog';
 import { Dropdown } from 'primereact/dropdown';
 import { Toast } from 'primereact/toast';
 import { dummyOrders } from '../api/mockData';
+import { useRouter } from 'next/navigation'; // <-- 1. IMPORTAR useRouter
+
 
 const lineDataIng: ChartData = {
     labels: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio'],
@@ -70,6 +72,9 @@ const Dashboard = () => {
     const [cancelDialogVisible, setCancelDialogVisible] = useState(false);
     const [orderToCancel, setOrderToCancel] = useState<any>(null);
     const [selectedReason, setSelectedReason] = useState<any>(null);
+
+    const router = useRouter(); // <-- 2. INICIALIZAR ROUTER
+
 
     const applyLightTheme = () => {
         const lineOptions: ChartOptions = {
@@ -252,8 +257,14 @@ const Dashboard = () => {
             </div>
 
             <div className="col-12 xl:col-6">
-                <div className="card">
-                    <h5>Costos operativos</h5>
+                <div
+                    className="card cursor-pointer hover:surface-hover transition-colors transition-duration-200"
+                    onClick={() => router.push('/finance')}
+                >
+                    <div className="flex justify-content-between align-items-center mb-3">
+                        <h5 className="m-0">Costos operativos</h5>
+                        <i className="pi pi-external-link text-gray-400"></i>
+                    </div>
                     <Chart type="line" data={lineDataEgr} options={lineOptions} />
                 </div>
             </div>

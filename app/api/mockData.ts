@@ -36,6 +36,27 @@ export interface NewClient {
     cp: string;
 }
 
+// --- TIPOS DE DATOS (Basados en tu SQL) ---
+export interface Movimiento {
+    id: number;
+    tipo: 'INGRESO' | 'EGRESO';
+    concepto: string;
+    monto: number;
+    fecha: string; // En una app real sería Date
+    usuario: string;
+    ordenId?: string;
+}
+
+// --- DATOS DE PRUEBA (Simulando tu tabla Movimientos) ---
+export const dummyMovimientos: Movimiento[] = [
+    { id: 1, tipo: 'INGRESO', concepto: 'Anticipo Orden ORD-001', monto: 1250.00, fecha: '2025-10-24 10:00', usuario: 'Cajero 1', ordenId: 'ORD-001' },
+    { id: 2, tipo: 'EGRESO', concepto: 'Compra de papel bond', monto: 450.50, fecha: '2025-10-24 11:30', usuario: 'Contadora' },
+    { id: 3, tipo: 'INGRESO', concepto: 'Pago final Orden ORD-002', monto: 980.50, fecha: '2025-10-24 12:15', usuario: 'Cajero 1', ordenId: 'ORD-002' },
+    { id: 4, tipo: 'EGRESO', concepto: 'Pago de luz', monto: 1200.00, fecha: '2025-10-25 09:00', usuario: 'Contadora' },
+    { id: 5, tipo: 'INGRESO', concepto: 'Venta de mostrador', monto: 300.00, fecha: '2025-10-25 14:00', usuario: 'Cajero 2' },
+    { id: 6, tipo: 'EGRESO', concepto: 'Compra de tinta urgente', monto: 800.00, fecha: '2025-10-25 16:45', usuario: 'Jefe Taller' },
+];
+
 // --- CATÁLOGO CON MATERIALES ---
 export const allProducts: Product[] = [
     {
