@@ -1,8 +1,6 @@
-import { Client, ClientRequest } from "@/app/service/clients";
+import { Client, ClientRequest } from "@/app/types/clients";
 
-// Usamos la misma variable de entorno que en userService y orderService
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
 export const ClientService = {
     async getAll(): Promise<Client[]> {
         if (!API_URL) throw new Error("API URL no configurada");
@@ -35,6 +33,6 @@ export const ClientService = {
     async delete(id: number): Promise<boolean> {
         const res = await fetch(`${API_URL}/clientes/${id}`, { method: "DELETE" });
         if (!res.ok) throw new Error("Error al eliminar cliente");
-        return true; 
+        return true;
     }
 };

@@ -1,5 +1,3 @@
-// src/types/ordenes.ts (o donde prefieras guardar tus tipos)
-
 export interface DetalleOrden {
     idProducto: number;
     cantidad: number;

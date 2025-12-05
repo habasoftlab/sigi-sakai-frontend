@@ -7,15 +7,14 @@ import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
 import { Divider } from 'primereact/divider';
 import { FilterMatchMode } from 'primereact/api';
 import Link from 'next/link';
-
-// Imports limpios de tus propios archivos
-import { cfdiOptions, regimenFiscalOptions } from '@/app/api/mockData';
 import { ClientService } from "@/app/service/clientService";
-import { Client, ClientRequest } from "@/app/service/clients";
+import { CatalogService } from "@/app/service/catalogServices";
+import { Client, ClientRequest } from "@/app/types/clients";
 
 const initialClient: Client = {
     id: null,
@@ -27,11 +26,14 @@ const initialClient: Client = {
     direccionFiscal: null,
     idUsoCfdi: null,
     idRegimenFiscal: null,
-    cp: null
 };
 
+interface DropdownOption {
+    label: string;
+    value: number;
+}
+
 const ListClientsPage = () => {
-    // Tipado estricto en los estados
     const [clients, setClients] = useState<Client[]>([]);
     const [clientDialog, setClientDialog] = useState(false);
     const [deleteClientDialog, setDeleteClientDialog] = useState(false);
@@ -39,26 +41,26 @@ const ListClientsPage = () => {
     const [submitted, setSubmitted] = useState(false);
     const [loading, setLoading] = useState(false);
     const [globalFilterValue, setGlobalFilterValue] = useState('');
-
     const [filters, setFilters] = useState({
         global: { value: null, matchMode: FilterMatchMode.CONTAINS }
     });
-
-    // Corrección clave para TypeScript: useRef<Toast>(null)
+    const [regimenOptions, setRegimenOptions] = useState<DropdownOption[]>([]);
+    const [cfdiOptions, setCfdiOptions] = useState<DropdownOption[]>([]);
     const toast = useRef<Toast>(null);
 
     useEffect(() => {
         loadClients();
+        loadCatalogs();
     }, []);
 
     const loadClients = async () => {
         setLoading(true);
         try {
             const data = await ClientService.getAll();
-            // Nota: Si tu backend ya devuelve la estructura correcta, no necesitas el mapeo manual.
-            // Si el backend es inconsistente, mantenemos esta limpieza:
-            const normalized = data.map(c => ({
+            const normalized = data.map((c: any) => ({
                 ...c,
+                id: c.idCliente || c.id || null,
+
                 nombre: c.nombre ?? '',
                 razonSocial: c.razonSocial ?? c.nombre ?? '',
             }));
@@ -68,6 +70,29 @@ const ListClientsPage = () => {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar los clientes', life: 4000 });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadCatalogs = async () => {
+        try {
+            const [regimenesData, usosData] = await Promise.all([
+                CatalogService.getRegimenesFiscales(),
+                CatalogService.getUsosCfdi()
+            ]);
+            const regimenesFormateados = regimenesData.map(r => ({
+                label: `${r.clave} - ${r.descripcion}`,
+                value: r.idRegimen
+            }));
+            setRegimenOptions(regimenesFormateados);
+
+            const usosFormateados = usosData.map(u => ({
+                label: `${u.clave} - ${u.descripcion}`,
+                value: u.idUsoCfdi
+            }));
+            setCfdiOptions(usosFormateados);
+
+        } catch (error) {
+            console.error("Error cargando catálogos", error);
         }
     };
 
@@ -94,7 +119,6 @@ const ListClientsPage = () => {
             return;
         }
 
-        // Preparamos el objeto limpio para enviar (sin IDs temporales ni basura)
         const payload: ClientRequest = {
             nombre: client.nombre,
             email: client.email || null,
@@ -104,11 +128,10 @@ const ListClientsPage = () => {
             direccionFiscal: client.direccionFiscal || null,
             idUsoCfdi: client.idUsoCfdi || null,
             idRegimenFiscal: client.idRegimenFiscal || null,
-            cp: client.cp || null
         };
 
         try {
-            if (client.id) {
+            if (client.id !== null) {
                 await ClientService.update(client.id, payload);
                 toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Cliente actualizado', life: 3000 });
             } else {
@@ -139,7 +162,6 @@ const ListClientsPage = () => {
         if (!client.id) return;
         try {
             await ClientService.delete(client.id);
-            // Actualizamos la lista localmente para no tener que recargar todo del server (optimistic update)
             const _clients = clients.filter((val) => val.id !== client.id);
             setClients(_clients);
 
@@ -161,25 +183,25 @@ const ListClientsPage = () => {
         setGlobalFilterValue(value);
     };
 
-    // Helper genérico para inputs de texto
-    const onInputChange = (e: React.ChangeEvent<HTMLInputElement>, field: keyof Client) => {
+    const onInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, field: keyof Client) => {
         const val = (e.target && e.target.value) || '';
         setClient(prev => ({ ...prev, [field]: val }));
     };
 
-    // Helper para Dropdowns (que devuelven e.value directamente)
     const onDropdownChange = (e: any, field: keyof Client) => {
         setClient(prev => ({ ...prev, [field]: e.value }));
     };
 
     const getRegimenLabel = (id: number | null) => {
-        const opt = regimenFiscalOptions.find((o: any) => o.value === id);
-        return opt ? opt.label : id?.toString() ?? '';
+        if (!id) return '';
+        const found = regimenOptions.find(op => op.value === id);
+        return found ? found.label : 'Cargando...';
     };
 
     const getCfdiLabel = (id: number | null) => {
-        const opt = cfdiOptions.find((o: any) => o.value === id);
-        return opt ? opt.label : id?.toString() ?? '';
+        if (!id) return '';
+        const found = cfdiOptions.find(op => op.value === id);
+        return found ? found.label : 'Cargando...';
     };
 
     const header = (
@@ -240,7 +262,8 @@ const ListClientsPage = () => {
                 rows={10}
                 header={header}
                 filters={filters}
-                globalFilterFields={['nombre', 'email', 'telefono', 'rfc', 'cp']}
+                // CAMBIO 1: Reemplazamos 'cp' por 'direccionFiscal' en la búsqueda
+                globalFilterFields={['nombre', 'email', 'telefono', 'rfc', 'direccionFiscal']}
                 emptyMessage="No se encontraron clientes."
                 responsiveLayout="scroll"
                 stripedRows
@@ -251,12 +274,9 @@ const ListClientsPage = () => {
                 <Column field="email" header="Correo" sortable style={{ minWidth: '12rem' }} />
                 <Column field="telefono" header="Teléfono" sortable style={{ minWidth: '10rem' }} />
                 <Column field="rfc" header="R.F.C." sortable style={{ minWidth: '10rem' }} />
-
-                {/* Body template para resolver IDs a texto legible */}
-                <Column body={(row: Client) => getRegimenLabel(row.idRegimenFiscal)} header="Régimen" sortable style={{ minWidth: '12rem' }} />
-                <Column body={(row: Client) => getCfdiLabel(row.idUsoCfdi)} header="C.F.D.I." sortable style={{ minWidth: '8rem' }} />
-
-                <Column field="cp" header="C.P." sortable style={{ minWidth: '6rem' }} />
+                <Column body={(row: Client) => getRegimenLabel(row.idRegimenFiscal)} header="Régimen Fiscal" sortable style={{ minWidth: '12rem' }} />
+                <Column body={(row: Client) => getCfdiLabel(row.idUsoCfdi)} header="Uso del C.F.D.I." sortable style={{ minWidth: '8rem' }} />
+                <Column field="direccionFiscal" header="Dirección Fiscal" sortable style={{ minWidth: '15rem' }} />
                 <Column body={actionBodyTemplate} exportable={false} style={{ minWidth: '8rem', textAlign: 'center' }} />
             </DataTable>
 
@@ -299,25 +319,35 @@ const ListClientsPage = () => {
                         </Divider>
                     </div>
 
-                    <div className="field col-12 md:col-4 mb-2">
+                    <div className="field col-12 mb-2">
                         <label htmlFor="rfc" className="font-bold block mb-1">R.F.C.</label>
                         <InputText id="rfc" value={client.rfc || ''} onChange={(e) => onInputChange(e, 'rfc')} />
                     </div>
 
-                    <div className="field col-12 md:col-8 mb-2">
+                    <div className="field col-12 mb-2">
+                        <label htmlFor="direccionFiscal" className="font-bold block mb-1">Dirección Fiscal</label>
+                        <InputTextarea
+                            id="direccionFiscal"
+                            value={client.direccionFiscal || ''}
+                            onChange={(e) => onInputChange(e, 'direccionFiscal')}
+                            rows={2}
+                            autoResize
+                        />
+                    </div>
+
+                    <div className="field col-12 md:col-6 mb-2">
                         <label htmlFor="idRegimenFiscal" className="font-bold block mb-1">Régimen Fiscal</label>
                         <Dropdown
                             id="idRegimenFiscal"
                             value={client.idRegimenFiscal}
-                            options={regimenFiscalOptions}
+                            options={regimenOptions}
                             onChange={(e) => onDropdownChange(e, 'idRegimenFiscal')}
                             placeholder="Seleccione régimen"
                             className="w-full"
-                            filter
                         />
                     </div>
 
-                    <div className="field col-12 md:col-8 mb-0">
+                    <div className="field col-12 md:col-6 mb-0">
                         <label htmlFor="idUsoCfdi" className="font-bold block mb-1">Uso del C.F.D.I.</label>
                         <Dropdown
                             id="idUsoCfdi"
@@ -327,11 +357,6 @@ const ListClientsPage = () => {
                             placeholder="Seleccione uso"
                             className="w-full"
                         />
-                    </div>
-
-                    <div className="field col-12 md:col-4 mb-0">
-                        <label htmlFor="cp" className="font-bold block mb-1">Código Postal</label>
-                        <InputText id="cp" value={client.cp || ''} onChange={(e) => onInputChange(e, 'cp')} />
                     </div>
                 </div>
             </Dialog>
