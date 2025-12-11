@@ -1,51 +1,37 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { classNames } from 'primereact/utils';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
-import { InputTextarea } from 'primereact/inputtextarea';
-import { Dropdown } from 'primereact/dropdown';
-import { Divider } from 'primereact/divider';
 import { FilterMatchMode } from 'primereact/api';
 import Link from 'next/link';
 import { ClientService } from "@/app/service/clientService";
 import { CatalogService } from "@/app/service/catalogServices";
-import { Client, ClientRequest } from "@/app/types/clients";
+import { Client } from "@/app/types/clients";
+import { ClientFormDialog } from "@/app/components/ClientFormDialog";
 
 const initialClient: Client = {
     id: null,
-    nombre: '',
-    email: null,
-    telefono: null,
-    rfc: null,
-    razonSocial: null,
-    direccionFiscal: null,
-    idUsoCfdi: null,
-    idRegimenFiscal: null,
+    nombre: '', email: null, telefono: null, rfc: null, razonSocial: null,
+    direccionFiscal: null, idUsoCfdi: null, idRegimenFiscal: null,
 };
 
-interface DropdownOption {
-    label: string;
-    value: number;
-}
+interface DropdownOption { label: string; value: number; }
 
 const ListClientsPage = () => {
     const [clients, setClients] = useState<Client[]>([]);
     const [clientDialog, setClientDialog] = useState(false);
     const [deleteClientDialog, setDeleteClientDialog] = useState(false);
     const [client, setClient] = useState<Client>(initialClient);
-    const [submitted, setSubmitted] = useState(false);
     const [loading, setLoading] = useState(false);
     const [globalFilterValue, setGlobalFilterValue] = useState('');
-    const [filters, setFilters] = useState({
-        global: { value: null, matchMode: FilterMatchMode.CONTAINS }
-    });
+    const [filters, setFilters] = useState({ global: { value: null, matchMode: FilterMatchMode.CONTAINS } });
     const [regimenOptions, setRegimenOptions] = useState<DropdownOption[]>([]);
     const [cfdiOptions, setCfdiOptions] = useState<DropdownOption[]>([]);
+
     const toast = useRef<Toast>(null);
 
     useEffect(() => {
@@ -60,14 +46,12 @@ const ListClientsPage = () => {
             const normalized = data.map((c: any) => ({
                 ...c,
                 id: c.idCliente || c.id || null,
-
                 nombre: c.nombre ?? '',
                 razonSocial: c.razonSocial ?? c.nombre ?? '',
             }));
             setClients(normalized);
         } catch (err) {
-            console.error(err);
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar los clientes', life: 4000 });
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar los clientes' });
         } finally {
             setLoading(false);
         }
@@ -79,80 +63,32 @@ const ListClientsPage = () => {
                 CatalogService.getRegimenesFiscales(),
                 CatalogService.getUsosCfdi()
             ]);
-            const regimenesFormateados = regimenesData.map(r => ({
-                label: `${r.clave} - ${r.descripcion}`,
-                value: r.idRegimen
-            }));
-            setRegimenOptions(regimenesFormateados);
-
-            const usosFormateados = usosData.map(u => ({
-                label: `${u.clave} - ${u.descripcion}`,
-                value: u.idUsoCfdi
-            }));
-            setCfdiOptions(usosFormateados);
-
-        } catch (error) {
-            console.error("Error cargando catálogos", error);
-        }
+            setRegimenOptions(regimenesData.map(r => ({ label: `${r.clave} - ${r.descripcion}`, value: r.idRegimen })));
+            setCfdiOptions(usosData.map(u => ({ label: `${u.clave} - ${u.descripcion}`, value: u.idUsoCfdi })));
+        } catch (error) { console.error("Error cargando catálogos", error); }
     };
 
+    // Funciones para abrir Dialog
     const openNew = () => {
-        setClient({ ...initialClient });
-        setSubmitted(false);
+        setClient({ ...initialClient }); // Limpia el estado para nuevo
+        setClientDialog(true);
+    };
+
+    const editClient = (c: Client) => {
+        setClient({ ...c }); // Carga el cliente a editar en el estado
         setClientDialog(true);
     };
 
     const hideDialog = () => {
-        setSubmitted(false);
         setClientDialog(false);
     };
 
-    const hideDeleteClientDialog = () => {
-        setDeleteClientDialog(false);
+    const handleClientSaved = () => {
+        loadClients(); // Recargar tabla
+        setClientDialog(false); // Cerrar modal
     };
 
-    const saveClient = async () => {
-        setSubmitted(true);
-
-        if (!client.nombre || !client.nombre.trim()) {
-            toast.current?.show({ severity: 'warn', summary: 'Atención', detail: 'El nombre es obligatorio', life: 3000 });
-            return;
-        }
-
-        const payload: ClientRequest = {
-            nombre: client.nombre,
-            email: client.email || null,
-            telefono: client.telefono || null,
-            rfc: client.rfc || null,
-            razonSocial: client.razonSocial || client.nombre,
-            direccionFiscal: client.direccionFiscal || null,
-            idUsoCfdi: client.idUsoCfdi || null,
-            idRegimenFiscal: client.idRegimenFiscal || null,
-        };
-
-        try {
-            if (client.id !== null) {
-                await ClientService.update(client.id, payload);
-                toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Cliente actualizado', life: 3000 });
-            } else {
-                await ClientService.create(payload);
-                toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Cliente creado', life: 3000 });
-            }
-
-            await loadClients();
-            setClientDialog(false);
-            setClient({ ...initialClient });
-        } catch (error) {
-            console.error(error);
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Ocurrió un error con el API', life: 3000 });
-        }
-    };
-
-    const editClient = (c: Client) => {
-        setClient({ ...c });
-        setClientDialog(true);
-    };
-
+    // Funciones para Borrar
     const confirmDeleteClient = (c: Client) => {
         setClient(c);
         setDeleteClientDialog(true);
@@ -162,18 +98,16 @@ const ListClientsPage = () => {
         if (!client.id) return;
         try {
             await ClientService.delete(client.id);
-            const _clients = clients.filter((val) => val.id !== client.id);
-            setClients(_clients);
-
+            setClients(clients.filter((val) => val.id !== client.id));
             setDeleteClientDialog(false);
             setClient({ ...initialClient });
-            toast.current?.show({ severity: 'success', summary: 'Eliminado', detail: 'Cliente eliminado', life: 3000 });
+            toast.current?.show({ severity: 'success', summary: 'Eliminado', detail: 'Cliente eliminado' });
         } catch (error) {
-            console.error(error);
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo eliminar el cliente', life: 3000 });
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo eliminar el cliente' });
         }
     };
 
+    // Helpers UI
     const onGlobalFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         let _filters = { ...filters };
@@ -183,37 +117,14 @@ const ListClientsPage = () => {
         setGlobalFilterValue(value);
     };
 
-    const onInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, field: keyof Client) => {
-        const val = (e.target && e.target.value) || '';
-        setClient(prev => ({ ...prev, [field]: val }));
-    };
-
-    const onDropdownChange = (e: any, field: keyof Client) => {
-        setClient(prev => ({ ...prev, [field]: e.value }));
-    };
-
-    const getRegimenLabel = (id: number | null) => {
-        if (!id) return '';
-        const found = regimenOptions.find(op => op.value === id);
-        return found ? found.label : 'Cargando...';
-    };
-
-    const getCfdiLabel = (id: number | null) => {
-        if (!id) return '';
-        const found = cfdiOptions.find(op => op.value === id);
-        return found ? found.label : 'Cargando...';
-    };
+    const getRegimenLabel = (id: number | null) => regimenOptions.find(op => op.value === id)?.label || '';
+    const getCfdiLabel = (id: number | null) => cfdiOptions.find(op => op.value === id)?.label || '';
 
     const header = (
         <div className="flex flex-column md:flex-row md:align-items-center justify-content-between gap-2">
             <span className="p-input-icon-left w-full md:w-auto">
                 <i className="pi pi-search" />
-                <InputText
-                    value={globalFilterValue}
-                    onChange={onGlobalFilterChange}
-                    placeholder="Buscar cliente..."
-                    className="w-full md:w-auto"
-                />
+                <InputText value={globalFilterValue} onChange={onGlobalFilterChange} placeholder="Buscar cliente..." className="w-full md:w-auto" />
             </span>
             <div className="flex gap-2">
                 <Button label="Agregar cliente" icon="pi pi-plus" onClick={openNew} />
@@ -228,16 +139,9 @@ const ListClientsPage = () => {
         </div>
     );
 
-    const clientDialogFooter = (
-        <div className="pt-2">
-            <Button label="Cancelar" icon="pi pi-times" text onClick={hideDialog} />
-            <Button label="Guardar" icon="pi pi-check" text onClick={saveClient} />
-        </div>
-    );
-
     const deleteClientDialogFooter = (
         <>
-            <Button label="No" icon="pi pi-times" text onClick={hideDeleteClientDialog} />
+            <Button label="No" icon="pi pi-times" text onClick={() => setDeleteClientDialog(false)} />
             <Button label="Sí" icon="pi pi-check" text severity="danger" onClick={deleteClient} />
         </>
     );
@@ -258,11 +162,9 @@ const ListClientsPage = () => {
 
             <DataTable
                 value={clients}
-                paginator
-                rows={10}
+                paginator rows={10}
                 header={header}
                 filters={filters}
-                // CAMBIO 1: Reemplazamos 'cp' por 'direccionFiscal' en la búsqueda
                 globalFilterFields={['nombre', 'email', 'telefono', 'rfc', 'direccionFiscal']}
                 emptyMessage="No se encontraron clientes."
                 responsiveLayout="scroll"
@@ -280,95 +182,17 @@ const ListClientsPage = () => {
                 <Column body={actionBodyTemplate} exportable={false} style={{ minWidth: '8rem', textAlign: 'center' }} />
             </DataTable>
 
-            <Dialog
+            <ClientFormDialog
                 visible={clientDialog}
-                style={{ width: '50vw', minWidth: '500px' }}
-                header="Detalles del Cliente"
-                modal
-                className="p-fluid"
-                footer={clientDialogFooter}
                 onHide={hideDialog}
-            >
-                <div className="p-fluid formgrid grid pt-2">
-                    <div className="field col-12 mb-2">
-                        <label htmlFor="nombre" className="font-bold block mb-1">Nombre / Razón Social*</label>
-                        <InputText
-                            id="nombre"
-                            value={client.nombre}
-                            onChange={(e) => onInputChange(e, 'nombre')}
-                            required
-                            autoFocus
-                            className={classNames({ 'p-invalid': submitted && !client.nombre })}
-                        />
-                        {submitted && !client.nombre && <small className="p-error block">El nombre es obligatorio.</small>}
-                    </div>
+                onSuccess={handleClientSaved}
+                clientToEdit={client.id ? client : null}
+            />
 
-                    <div className="field col-12 md:col-6 mb-2">
-                        <label htmlFor="email" className="font-bold block mb-1">Correo Electrónico</label>
-                        <InputText id="email" value={client.email || ''} onChange={(e) => onInputChange(e, 'email')} />
-                    </div>
-
-                    <div className="field col-12 md:col-6 mb-2">
-                        <label htmlFor="telefono" className="font-bold block mb-1">Teléfono</label>
-                        <InputText id="telefono" value={client.telefono || ''} onChange={(e) => onInputChange(e, 'telefono')} />
-                    </div>
-
-                    <div className="col-12">
-                        <Divider align="left" className="my-2">
-                            <span className="p-tag p-tag-rounded text-xs">Datos Fiscales</span>
-                        </Divider>
-                    </div>
-
-                    <div className="field col-12 mb-2">
-                        <label htmlFor="rfc" className="font-bold block mb-1">R.F.C.</label>
-                        <InputText id="rfc" value={client.rfc || ''} onChange={(e) => onInputChange(e, 'rfc')} />
-                    </div>
-
-                    <div className="field col-12 mb-2">
-                        <label htmlFor="direccionFiscal" className="font-bold block mb-1">Dirección Fiscal</label>
-                        <InputTextarea
-                            id="direccionFiscal"
-                            value={client.direccionFiscal || ''}
-                            onChange={(e) => onInputChange(e, 'direccionFiscal')}
-                            rows={2}
-                            autoResize
-                        />
-                    </div>
-
-                    <div className="field col-12 md:col-6 mb-2">
-                        <label htmlFor="idRegimenFiscal" className="font-bold block mb-1">Régimen Fiscal</label>
-                        <Dropdown
-                            id="idRegimenFiscal"
-                            value={client.idRegimenFiscal}
-                            options={regimenOptions}
-                            onChange={(e) => onDropdownChange(e, 'idRegimenFiscal')}
-                            placeholder="Seleccione régimen"
-                            className="w-full"
-                        />
-                    </div>
-
-                    <div className="field col-12 md:col-6 mb-0">
-                        <label htmlFor="idUsoCfdi" className="font-bold block mb-1">Uso del C.F.D.I.</label>
-                        <Dropdown
-                            id="idUsoCfdi"
-                            value={client.idUsoCfdi}
-                            options={cfdiOptions}
-                            onChange={(e) => onDropdownChange(e, 'idUsoCfdi')}
-                            placeholder="Seleccione uso"
-                            className="w-full"
-                        />
-                    </div>
-                </div>
-            </Dialog>
-
-            <Dialog visible={deleteClientDialog} style={{ width: '32rem' }} breakpoints={{ '960px': '75vw', '641px': '90vw' }} header="Confirmar" modal footer={deleteClientDialogFooter} onHide={hideDeleteClientDialog}>
+            <Dialog visible={deleteClientDialog} style={{ width: '32rem' }} breakpoints={{ '960px': '75vw', '641px': '90vw' }} header="Confirmar" modal footer={deleteClientDialogFooter} onHide={() => setDeleteClientDialog(false)}>
                 <div className="confirmation-content">
                     <i className="pi pi-exclamation-triangle mr-3 text-yellow-500" style={{ fontSize: '2rem' }} />
-                    {client && (
-                        <span>
-                            ¿Estás seguro de que quieres eliminar a <b>{client.nombre}</b>?
-                        </span>
-                    )}
+                    {client && (<span>¿Estás seguro de que quieres eliminar a <b>{client.nombre}</b>?</span>)}
                 </div>
             </Dialog>
         </div>

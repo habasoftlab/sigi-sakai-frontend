@@ -5,7 +5,21 @@ export interface NuevoUsuario {
     rol: number | null;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_USERS_API_URL;
+
+export const UserService = {
+    async getAll() {
+        const res = await fetch(`${API_URL}/usuarios`);
+        if (!res.ok) throw new Error("Error al obtener usuarios");
+        return await res.json();
+    },
+
+    async getDesigners() {
+        const res = await fetch(`${API_URL}/usuarios/disenadores`);
+        if (!res.ok) throw new Error("Error al obtener lista de diseñadores");
+        return await res.json();
+    }
+};
 
 export async function registrarUsuario(data: NuevoUsuario) {
     if (!API_URL) {

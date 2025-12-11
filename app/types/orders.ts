@@ -17,24 +17,27 @@ export interface OrdenCabecera {
     insumosVerificados: boolean;
 }
 
-// Estructura para crear una nueva orden (Endpoint 1)
 export interface NuevaOrdenRequest {
     orden: OrdenCabecera;
     detalles: DetalleOrden[];
     idUsuarioAccion: number;
 }
 
-// Estructura para avanzar estatus (Endpoint 4)
-// Usamos "Partial" o una unión de tipos porque el body cambia según el área
 export type AvanzarEstatusRequest =
-    | { idUsuario: number }                        // Caso A: General
-    | { idUsuario: number; hayInsumos: boolean }   // Caso B: Taller
-    | { idUsuario: number; clienteAprobo: boolean }; // Caso C: Cliente
+    | { idUsuario: number }
+    | { idUsuario: number; hayInsumos: boolean }
+    | { idUsuario: number; clienteAprobo: boolean };
 
 export interface Producto {
     idProducto: number;
     descripcion: string;
     precioUnitario: number;
+    precioPaquete: number;
+    tiempoProduccionDias: number;
+    formatoTamano: string;
+    unidadVenta: string;
+    tirajeMinimo: number;
+    volumenDescuentoCantidad?: number | null;
 }
 
 export interface CondicionPago {
