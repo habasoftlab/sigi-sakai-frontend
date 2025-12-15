@@ -26,7 +26,6 @@ import { ClientSearchDialog } from "@/app/components/ClientSearchDialog";
 import { UserService } from "@/app/service/userService";
 
 const CURRENT_USER_ID = 2;
-interface DropdownOption { label: string; value: number; }
 interface QuoteItemUI extends Producto {
     cantidad: number;
     importe: number;
@@ -36,6 +35,7 @@ const Counter = () => {
     const [products, setProducts] = useState<Producto[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [designers, setDesigners] = useState<any[]>([]);
+    const [productsCatalog, setProductsCatalog] = useState<any[]>([]);
 
     // ESTADO DEL CARRITO / ORDEN ACTUAL
     const [quoteItems, setQuoteItems] = useState<QuoteItemUI[]>([]);
@@ -56,6 +56,10 @@ const Counter = () => {
     const [showQuantityDialog, setShowQuantityDialog] = useState(false);
     const [showOrderSummary, setShowOrderSummary] = useState(false);
     const [expandedRows, setExpandedRows] = useState<any>([]);
+    const [activeOrderItems, setActiveOrderItems] = useState<any[]>([]);
+    const [paymentConditions, setPaymentConditions] = useState<any[]>([]);
+    const [activeOrderStatus, setActiveOrderStatus] = useState<number>(0);
+    const [activeOrderPaid, setActiveOrderPaid] = useState(0);
 
     // DATOS PARA LISTAS
     const [ShowOrdersList, setShowOrdersList] = useState(false);
@@ -65,6 +69,12 @@ const Counter = () => {
     const [orderNotes, setOrderNotes] = useState('');
     const [ShowQuoteList, setShowQuotesList] = useState(false);
     const [statusMap, setStatusMap] = useState<any>({});
+    const [totalRecords, setTotalRecords] = useState(0);
+    const [lazyParams, setLazyParams] = useState({
+        first: 0,
+        rows: 10,
+        page: 0
+    });
 
     // VARIABLES TEMPORALES (Inputs)
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -94,10 +104,12 @@ const Counter = () => {
     };
 
     useEffect(() => {
-        loadOrderHistory();
         loadClients();
         loadDesigners();
         loadStatusCatalog();
+        loadOrderHistory();
+        loadProductsCatalog();
+        loadConditions();
     }, []);
 
     const loadClients = async () => {
@@ -105,6 +117,15 @@ const Counter = () => {
             const data = await ClientService.getAll();
             setClients(data.map((c: any) => ({ ...c, id: c.id || c.idCliente, nombre: c.nombre ?? '' })));
         } catch (e) { console.error(e); }
+    };
+
+    const loadConditions = async () => {
+        try {
+            const data = await CatalogService.getCondicionesPago();
+            setPaymentConditions(data);
+        } catch (error) {
+            console.error("Error cargando condiciones de pago", error);
+        }
     };
 
     const loadDesigners = async () => {
@@ -124,6 +145,7 @@ const Counter = () => {
             setDesigners([{ label: '--- Sin Asignar (Pendiente) ---', value: null }]);
         }
     };
+
     const loadStatusCatalog = async () => {
         try {
             const listaEstatus = await OrderService.getEstatusOperaciones();
@@ -137,15 +159,18 @@ const Counter = () => {
         }
     };
 
-    const loadOrderHistory = async () => {
+    const loadOrderHistory = async (pageToLoad = lazyParams.page, pageSize = lazyParams.rows) => {
         setIsLoadingList(true);
         try {
-            const response = await OrderService.getOrdenes();
+            const response = await OrderService.getOrdenes(pageToLoad, pageSize);
             const data = (response as any).content || [];
+            const pageInfo = (response as any).page;
+            if (pageInfo) {
+                setTotalRecords(pageInfo.totalElements);
+            }
             if (!data || data.length === 0) {
                 setQuotesList([]);
                 setOrdersList([]);
-                setIsLoadingList(false);
                 return;
             }
             let listaDiseñadoresParaMapeo = designers;
@@ -153,30 +178,30 @@ const Counter = () => {
                 try {
                     const rawDesigners = await UserService.getDesigners();
                     const options = rawDesigners.map((u: any) => ({ label: u.nombre, value: u.idUsuario }));
-                    listaDiseñadoresParaMapeo = [{ label: '--- PENDIENTE DE ASIGNACIÓN ---', value: null }, ...options];
+                    listaDiseñadoresParaMapeo = [{ label: '--PENDIENTE DE ASIGNACIÓN--', value: null }, ...options];
                     setDesigners(listaDiseñadoresParaMapeo);
                 } catch (err) { console.error(err); }
             }
-            const enrichedData = data.map((order: any) => {
+            let enrichedData = data.map((order: any) => {
                 const designerObj = listaDiseñadoresParaMapeo.find(d => d.value == order.idUsuarioDisenador);
                 let nombreGrupo = '';
-                if (order.idUsuarioDisenador === null) {
-                    nombreGrupo = '--- PENDIENTE DE ASIGNACIÓN ---';
-                } else if (designerObj) {
-                    nombreGrupo = designerObj.label;
-                } else {
-                    nombreGrupo = `Diseñador ID: ${order.idUsuarioDisenador} (No encontrado)`;
-                }
-                const total = order.montoTotal || 0;
-                const pagado = order.montoPagado || 0;
-                const saldoCalculado = total - pagado;
-                const estatusNombre = statusMap[order.idEstatusActual] || `Estatus ${order.idEstatusActual}`;
+                if (order.idUsuarioDisenador === null) nombreGrupo = '--PENDIENTE DE ASIGNACIÓN--';
+                else if (designerObj) nombreGrupo = designerObj.label;
+                else nombreGrupo = `Diseñador ID: ${order.idUsuarioDisenador}`;
+                const estatusNombre = (statusMap && statusMap[order.idEstatusActual])
+                    ? statusMap[order.idEstatusActual]
+                    : `Estatus ${order.idEstatusActual}`;
                 return {
                     ...order,
                     nombreDisenador: nombreGrupo,
-                    saldoPendiente: saldoCalculado,
+                    saldoPendiente: (order.montoTotal || 0) - (order.montoPagado || 0),
                     estatusNombre: estatusNombre
                 };
+            });
+            enrichedData.sort((a: any, b: any) => {
+                if (a.nombreDisenador < b.nombreDisenador) return -1;
+                if (a.nombreDisenador > b.nombreDisenador) return 1;
+                return 0;
             });
             const initialExpandedRows: any[] = [];
             const addedGroups = new Set();
@@ -191,11 +216,24 @@ const Counter = () => {
             setQuotesList(enrichedData.filter((o: any) => o.idEstatusActual === 1));
             setOrdersList(enrichedData.filter((o: any) => o.idEstatusActual !== 1));
         } catch (error) {
-            console.error("Error cargando historial:", error);
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar el historial' });
         } finally {
             setIsLoadingList(false);
         }
+    };
+
+    const loadProductsCatalog = async () => {
+        try {
+            const data = await CatalogService.getAllProductos();
+            setProductsCatalog(data);
+        } catch (error) {
+            console.error("Error cargando productos", error);
+        }
+    };
+
+    const onPage = (event: any) => {
+        setLazyParams(event);
+        loadOrderHistory(event.page, event.rows);
     };
 
     const handleAddPayment = (orderRow: any) => {
@@ -203,7 +241,7 @@ const Counter = () => {
         setActiveOrderTotal(orderRow.saldoPendiente);
         setQuoteItems([]);
         setShowOrdersList(false);
-        setPaymentType('unico'); // Default
+        setPaymentType('unico');
         setAdvanceAmount(orderRow.saldoPendiente);
         setOrderNotes('');
         setShowOrderSummary(true);
@@ -237,7 +275,7 @@ const Counter = () => {
             toast.current?.show({ severity: 'success', summary: 'Cotización Guardada', detail: 'Disponible en la lista.' });
             setShowQuoteSummary(false);
             handleClearScreen();
-
+            await loadOrderHistory();
         } catch (e) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Fallo al guardar cotización' });
         }
@@ -267,7 +305,7 @@ const Counter = () => {
 
     const searchProduct = async (e: AutoCompleteCompleteEvent) => {
         if (!e.query.trim()) { setProducts([]); return; }
-        try { setProducts(await CatalogService.buscarProductos(e.query)); } catch (err) { }
+        try { setProducts(await CatalogService.getProductos(e.query)); } catch (err) { }
     };
     const onProductSelect = (e: any) => {
         if (e.value && !quoteItems.find(i => i.idProducto === e.value.idProducto)) {
@@ -322,14 +360,27 @@ const Counter = () => {
         if (isSubmitting) return;
         setIsSubmitting(true);
         try {
-            let nuevoIdCondicion = 1;
-            if (paymentType === 'anticipo') {
-                nuevoIdCondicion = 2; // "Anticipo 20%"
-            } else if (paymentType === 'plazos') {
-                // Si > 3000 son 3 pagos (ID 4), si no, 2 pagos (ID 3)
-                nuevoIdCondicion = activeOrderTotal >= 3000 ? 4 : 3;
+            let condicionEncontrada: any = null;
+            if (paymentType === 'unico') {
+                condicionEncontrada = paymentConditions.find(c => c.numeroPlazos === 1);
             }
-            await OrderService.updateCondicionPago(activeOrderId, nuevoIdCondicion);
+            else if (paymentType === 'anticipo') {
+                condicionEncontrada = paymentConditions.find(c => c.descripcion.includes('20%'))
+                    || paymentConditions.find(c => c.numeroPlazos === 2);
+            }
+            else if (paymentType === 'plazos') {
+                if (activeOrderTotal >= 3000) {
+                    condicionEncontrada = paymentConditions.find(c => c.numeroPlazos === 3);
+                } else {
+                    condicionEncontrada = paymentConditions.find(c => c.descripcion.includes('50%'))
+                        || paymentConditions.find(c => c.numeroPlazos === 2 && !c.descripcion.includes('20%'));
+                }
+            }
+            const idCondicionFinal = condicionEncontrada ? condicionEncontrada.idCondicion : 1;
+            if (!condicionEncontrada) {
+                console.warn("No se encontró la condición exacta en el catálogo, usando ID 1 por defecto.");
+            }
+            await OrderService.updateCondicionPago(activeOrderId, idCondicionFinal);
             if (advanceAmount > 0) {
                 await OrderService.registrarPago(activeOrderId, {
                     monto: advanceAmount,
@@ -337,8 +388,10 @@ const Counter = () => {
                     idUsuario: CURRENT_USER_ID
                 });
             }
-            const statusUpdateBody = { idUsuario: CURRENT_USER_ID };
-            await OrderService.avanzarEstatus(activeOrderId, statusUpdateBody);
+            if (activeOrderStatus === 1) {
+                const statusUpdateBody = { idUsuario: CURRENT_USER_ID };
+                await OrderService.avanzarEstatus(activeOrderId, statusUpdateBody);
+            }
             toast.current?.show({
                 severity: 'success',
                 summary: 'Orden Confirmada',
@@ -348,7 +401,7 @@ const Counter = () => {
             setActiveOrderId(null);
             setOrderNotes('');
             setAdvanceAmount(0);
-            setQuoteItems([]);
+            setActiveOrderItems([]);
             loadOrderHistory();
         } catch (error: any) {
             const msg = error.message || error.details || "No se pudo procesar la solicitud.";
@@ -370,36 +423,93 @@ const Counter = () => {
         setAssignedClient(clientFound || null);
         setSelectedDesigner(quoteRow.idUsuarioDisenador);
         setRequiresBilling(quoteRow.requiereFactura);
+        setPaymentType('unico');
+        setAdvanceAmount(0);
+        setOrderNotes('');
+        setActiveOrderStatus(quoteRow.idEstatusActual);
+        setActiveOrderPaid(quoteRow.montoPagado || 0);
         try {
             const fullOrderData = await OrderService.getOrdenById(quoteRow.idOrden);
-
             if (fullOrderData.detalles && Array.isArray(fullOrderData.detalles)) {
-                const mappedItems: QuoteItemUI[] = fullOrderData.detalles.map((d: any) => {
-                    const catalogoProducto = products.find((p: any) => p.idProducto === d.idProducto);
+                const mappedItems: any[] = fullOrderData.detalles.map((d: any) => {
+                    const catalogoProducto = productsCatalog.find((p: any) => p.idProducto === d.idProducto);
                     return {
+                        ...d,
                         idProducto: d.idProducto,
-                        descripcion: catalogoProducto ? catalogoProducto.descripcion : `Producto #${d.idProducto}`,
+                        descripcion: catalogoProducto ? catalogoProducto.descripcion : `(ID: ${d.idProducto})`,
                         costo: d.precioUnitario,
                         cantidad: d.cantidad,
                         importe: d.importe,
                         tiempoProduccionDias: catalogoProducto?.tiempoProduccionDias || 0,
-                        volumenDescuentoCantidad: null,
                         precioUnitario: d.precioUnitario
                     };
                 });
-                setQuoteItems(mappedItems);
+                setActiveOrderItems(mappedItems);
             } else {
-                setQuoteItems([]);
+                setActiveOrderItems([]);
             }
+            setShowQuotesList(false);
+            setShowOrdersList(false);
+            setShowQuoteSummary(false);
+            setShowOrderSummary(true);
+
         } catch (error) {
-            console.error("Error cargando detalles", error);
-            setQuoteItems([]);
+            setActiveOrderItems([]);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar la orden.' });
         }
-        setShowQuotesList(false);
-        setPaymentType('unico');
-        setAdvanceAmount(quoteRow.montoTotal);
+    };
+
+    const handleQuickPay = (rowData: any) => {
+        setActiveOrderId(rowData.idOrden);
+        setActiveOrderTotal(rowData.montoTotal);
+        const { tipoVisual, montoSugerido } = calcularSugerenciaPago(rowData);
+        setPaymentType(tipoVisual);
+        setAdvanceAmount(montoSugerido);
         setOrderNotes('');
+        setActiveOrderItems([]);
         setShowOrderSummary(true);
+        setActiveOrderStatus(rowData.idEstatusActual);
+        setActiveOrderPaid(rowData.montoPagado || 0);
+    };
+
+    type TipoPago = 'unico' | 'anticipo' | 'plazos';
+    const calcularSugerenciaPago = (orden: any) => {
+        const saldoPendiente = orden.montoTotal - orden.montoPagado;
+        let tipoVisual: TipoPago = 'unico';
+        let montoSugerido = saldoPendiente;
+        switch (orden.idCondicionPago) {
+            case 1:
+                tipoVisual = 'unico';
+                montoSugerido = saldoPendiente;
+                break;
+
+            case 2:
+                tipoVisual = 'anticipo';
+                if (orden.montoPagado >= (orden.montoTotal * 0.19)) {
+                    montoSugerido = saldoPendiente;
+                } else {
+                    montoSugerido = orden.montoTotal * 0.20;
+                }
+                break;
+
+            case 3:
+                tipoVisual = 'plazos';
+                const pago50 = orden.montoTotal * 0.50;
+                montoSugerido = Math.min(pago50, saldoPendiente);
+                break;
+
+            case 4:
+                tipoVisual = 'plazos';
+                const pago33 = orden.montoTotal / 3;
+                montoSugerido = Math.min(pago33, saldoPendiente);
+                break;
+
+            default:
+                tipoVisual = 'unico';
+                montoSugerido = saldoPendiente;
+        }
+        montoSugerido = Math.max(0, Math.min(montoSugerido, saldoPendiente));
+        return { tipoVisual, montoSugerido };
     };
 
     return (
@@ -466,10 +576,14 @@ const Counter = () => {
                     onHide={() => setShowQuotesList(false)}
                 >
                     <DataTable
+                        lazy={true}
+                        paginator={true}
+                        first={lazyParams.first}
+                        rows={lazyParams.rows}
+                        totalRecords={totalRecords}
+                        onPage={onPage}
+                        rowsPerPageOptions={[5, 10]}
                         value={quotesList}
-                        paginator
-                        rows={10}
-                        rowsPerPageOptions={[5, 10, 25]}
                         loading={isLoadingList}
                         emptyMessage="No hay cotizaciones."
                         rowGroupMode="subheader"
@@ -485,21 +599,18 @@ const Counter = () => {
                         <Column
                             field="idOrden"
                             header="Folio"
-                            sortable
                             style={{ width: '10%' }}
                             body={(rowData) => <span className="font-bold">#{rowData.idOrden}</span>}
                         />
                         <Column
                             field="fechaCreacion"
                             header="Fecha"
-                            sortable
                             style={{ width: '15%' }}
                             body={(rowData) => new Date(rowData.fechaCreacion).toLocaleDateString()}
                         />
                         <Column
                             header="Cliente"
                             field="idCliente"
-                            sortable
                             style={{ width: '30%' }}
                             body={(d) => {
                                 const c = clients.find(cl => cl.id === d.idCliente);
@@ -510,11 +621,10 @@ const Counter = () => {
                             field="montoTotal"
                             header="Total"
                             body={(d) => `$${d.montoTotal.toFixed(2)}`}
-                            sortable
                             style={{ width: '20%' }}
                         />
                         <Column
-                            header="Acción"
+                            header=""
                             style={{ width: '15%', textAlign: 'center' }}
                             body={(data) => (
                                 <Button
@@ -523,7 +633,6 @@ const Counter = () => {
                                     size="small"
                                     severity="info"
                                     onClick={() => handleOrder(data)}
-                                    tooltip="Cargar datos para finalizar venta"
                                 />
                             )}
                         />
@@ -539,9 +648,14 @@ const Counter = () => {
                     onHide={() => setShowOrdersList(false)}
                 >
                     <DataTable
+                        lazy={true}
+                        paginator={true}
+                        first={lazyParams.first}
+                        rows={lazyParams.rows}
+                        totalRecords={totalRecords}
+                        onPage={onPage}
+                        rowsPerPageOptions={[5, 10]}
                         value={ordersList}
-                        paginator
-                        rows={10}
                         rowGroupMode="subheader"
                         groupRowsBy="nombreDisenador"
                         sortMode="single"
@@ -559,7 +673,7 @@ const Counter = () => {
                         <Column field="saldoPendiente" header="Saldo" body={(d) => <span className={d.saldoPendiente > 0 ? 'text-red-500 font-bold' : 'text-green-500'}>${d.saldoPendiente?.toFixed(2)}</span>} />
                         <Column header="Pagos" style={{ textAlign: 'center' }} body={(data) => (
                             data.saldoPendiente > 0 ?
-                                <Button label="Abonar" icon="pi pi-dollar" severity="success" size="small" onClick={() => handleAddPayment(data)} /> :
+                                <Button label="Abonar" icon="pi pi-dollar" severity="success" size="small" onClick={() => handleQuickPay(data)} /> :
                                 <i className="pi pi-check-circle text-green-500 text-xl" title="Pagado"></i>
                         )} />
                     </DataTable>
@@ -576,7 +690,14 @@ const Counter = () => {
                     <div className="grid">
                         <div className="col-12 md:col-8">
                             <DataTable value={quoteItems} responsiveLayout="scroll" size="small" showGridlines stripedRows>
-                                <Column field="descripcion" header="Descripción del producto"></Column>
+                                <Column
+                                    header="Descripción del producto"
+                                    body={(rowData) => (
+                                        <span className="font-semibold">
+                                            {rowData.descripcion || rowData.nombre || rowData.producto?.nombre || "Producto sin nombre"}
+                                        </span>
+                                    )}
+                                ></Column>
                                 <Column field="cantidad" header="Cantidad" body={(item) => `${item.cantidad} u`} className="text-center"></Column>
                                 <Column field="importe" header="Importe" body={(item) => `$${item.importe.toFixed(2)}`} className="text-right font-bold"></Column>
                             </DataTable>
@@ -668,7 +789,7 @@ const Counter = () => {
 
                 {/*MODAL: RESUMEN DE LA ORDEN*/}
                 <Dialog
-                    header={quoteItems.length > 0 ? `Finalizar Venta #${activeOrderId || ''}` : `Abonar a Orden #${activeOrderId || ''}`}
+                    header={activeOrderItems.length > 0 ? `Resumen de la orden #${activeOrderId || ''}` : `Abonar orden #${activeOrderId || ''}`}
                     visible={showOrderSummary}
                     style={{ width: '85vw', maxWidth: '1200px' }}
                     modal
@@ -688,10 +809,8 @@ const Counter = () => {
                                     <i className="pi pi-list text-primary"></i>
                                     Detalle de la Orden
                                 </h3>
-
-                                {/* Si es un abono rápido (quoteItems vacíos), mostramos mensaje diferente */}
                                 <DataTable
-                                    value={quoteItems}
+                                    value={activeOrderItems}
                                     responsiveLayout="scroll"
                                     size="small"
                                     showGridlines
@@ -713,8 +832,7 @@ const Counter = () => {
                                 <div className="flex justify-content-end mt-5">
                                     <div className="text-right p-3 border-round surface-50 border-1 border-200">
                                         <span className="text-xl text-gray-600 mr-3">
-                                            {/* <--- MEJORA: Etiqueta correcta según contexto */}
-                                            {quoteItems.length > 0 ? "Total Orden:" : "Saldo Pendiente:"}
+                                            {activeOrderItems.length > 0 ? "Total de la Orden:" : "Total de la Orden:"}
                                         </span>
                                         <span className="text-3xl font-bold text-primary">${activeOrderTotal.toFixed(2)}</span>
                                     </div>
@@ -746,43 +864,46 @@ const Counter = () => {
                         <div className="col-12 lg:col-4">
                             <div className="surface-card p-4 border-round shadow-1 h-full flex flex-column">
                                 <h3 className="mb-3 text-gray-700 text-xl font-bold">Método de Pago</h3>
-
                                 <div className="flex flex-column gap-2 mb-4">
+                                    {/* LIQUIDAR: Bloqueará el input y pone el saldo restante */}
                                     <Button
-                                        label="Pago Total / Liquidar"
+                                        label="Pago Total"
                                         icon="pi pi-check-circle"
                                         className={`p-button-sm text-left ${paymentType === 'unico' ? 'p-button-primary' : 'p-button-outlined p-button-secondary'}`}
-                                        // <--- MEJORA: Al hacer clic, AUTO-LLENAMOS el monto con el total
                                         onClick={() => {
                                             setPaymentType('unico');
-                                            setAdvanceAmount(activeOrderTotal);
+                                            const saldo = (activeOrderTotal || 0) - (activeOrderPaid || 0);
+                                            setAdvanceAmount(Number(saldo.toFixed(2)));
                                         }}
                                     />
+                                    {/* ANTICIPO: Siempre 20% del total (Fijo) */}
                                     <Button
-                                        label="Abono Parcial / Anticipo"
+                                        label={`Anticipo (20%)`}
                                         icon="pi pi-wallet"
                                         className={`p-button-sm text-left ${paymentType === 'anticipo' ? 'p-button-primary' : 'p-button-outlined p-button-secondary'}`}
-                                        // <--- MEJORA: Limpiamos para que escriban, o sugerimos 50%
                                         onClick={() => {
                                             setPaymentType('anticipo');
-                                            setAdvanceAmount(0); // Dejamos en 0 para que el usuario escriba
+                                            const anticipo = (activeOrderTotal || 0) * 0.20;
+                                            setAdvanceAmount(Number(anticipo.toFixed(2)));
                                         }}
                                     />
+                                    {/* PLAZOS */}
                                     <Button
                                         label={`Esquema de Plazos (${activeOrderTotal >= 3000 ? '3' : '2'} Pagos)`}
                                         icon="pi pi-calendar"
                                         className={`p-button-sm text-left ${paymentType === 'plazos' ? 'p-button-primary' : 'p-button-outlined p-button-secondary'}`}
-                                        // <--- MEJORA: Calculamos el primer pago sugerido (50% o 33%)
                                         onClick={() => {
                                             setPaymentType('plazos');
                                             const divisor = activeOrderTotal >= 3000 ? 3 : 2;
-                                            setAdvanceAmount(Number((activeOrderTotal / divisor).toFixed(2)));
+                                            const letra = (activeOrderTotal || 0) / divisor;
+                                            const saldo = (activeOrderTotal || 0) - (activeOrderPaid || 0);
+                                            const montoFinal = letra > saldo ? saldo : letra;
+                                            setAdvanceAmount(Number(montoFinal.toFixed(2)));
                                         }}
-                                        disabled={activeOrderTotal < 1000}
+                                        disabled={(activeOrderTotal || 0) < 1000}
                                     />
                                 </div>
                                 <Divider />
-
                                 {/* Input del Monto */}
                                 <div className="mb-2">
                                     <label className="font-bold block mb-2 text-gray-700">Monto a cobrar hoy</label>
@@ -790,40 +911,65 @@ const Counter = () => {
                                         <span className="p-inputgroup-addon text-green-600 font-bold">$</span>
                                         <InputNumber
                                             value={advanceAmount}
-                                            onValueChange={(e) => {
-                                                setAdvanceAmount(e.value ?? 0);
-                                            }}
+                                            onValueChange={(e) => setAdvanceAmount(e.value ?? 0)}
+                                            placeholder="0.00"
                                             mode="currency"
                                             currency="MXN"
+                                            locale="es-MX"
+                                            minFractionDigits={2}
                                             min={0}
-                                            max={activeOrderTotal}
                                             inputStyle={{ fontWeight: 'bold', fontSize: '1.2rem' }}
+                                            disabled={paymentType === 'unico'}
+                                            className={advanceAmount > (activeOrderTotal - activeOrderPaid) ? 'p-invalid' : ''}
                                         />
                                     </div>
-
-                                    {paymentType === 'anticipo' && activeOrderTotal > 0 && (
-                                        <div className={`flex align-items-center gap-2 mt-1 text-sm ${advanceAmount < activeOrderTotal * 0.20 ? 'text-red-500' : 'text-green-600'}`}>
-                                            <i className={`pi ${advanceAmount < activeOrderTotal * 0.20 ? 'pi-exclamation-triangle' : 'pi-check'}`}></i>
-                                            <span>Mínimo sugerido (20%): ${(activeOrderTotal * 0.20).toFixed(2)}</span>
-                                        </div>
-                                    )}
+                                    {/* Mensajes de Validación / Ayuda */}
+                                    <div className="mt-1">
+                                        {/* AVISO: Si escribe más de lo que debe */}
+                                        {advanceAmount > (activeOrderTotal - activeOrderPaid + 0.1) && (
+                                            <div className="text-red-500 text-xs font-bold animate-fade-in">
+                                                <i className="pi pi-times-circle mr-1"></i>
+                                                El monto excede el saldo pendiente (${(activeOrderTotal - activeOrderPaid).toFixed(2)})
+                                            </div>
+                                        )}
+                                        {/* AVISO: Mínimo sugerido para anticipos */}
+                                        {paymentType === 'anticipo' && activeOrderTotal > 0 && advanceAmount < (activeOrderTotal * 0.20) && (
+                                            <div className="text-orange-500 text-xs flex align-items-center gap-1">
+                                                <i className="pi pi-info-circle"></i>
+                                                <span>Sugerido 20%: ${(activeOrderTotal * 0.20).toFixed(2)}</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
-                                {/* Boleta de Saldos */}
+                                {/* Boleta de Saldos*/}
                                 <div className="surface-100 p-3 border-round mb-4 mt-2 text-sm">
-                                    <div className="flex justify-content-between mb-2">
-                                        <span className="text-700">Monto Operación:</span>
-                                        <span className="font-semibold text-900">${activeOrderTotal.toFixed(2)}</span>
+                                    <div className="flex justify-content-between mb-1">
+                                        <span className="text-600">Total Orden:</span>
+                                        <span className="font-semibold">${activeOrderTotal.toFixed(2)}</span>
                                     </div>
-                                    <div className="flex justify-content-between mb-2">
-                                        <span className="text-700">Cobrando hoy:</span>
-                                        <span className="font-bold text-primary">-${advanceAmount.toFixed(2)}</span>
+                                    {activeOrderPaid > 0 && (
+                                        <div className="flex justify-content-between mb-1">
+                                            <span className="text-600">Abonado anteriormente:</span>
+                                            <span className="font-semibold text-green-600">-${activeOrderPaid.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-content-between mb-2 pt-2 border-top-1 border-300">
+                                        <span className="text-800 font-bold">Saldo Pendiente:</span>
+                                        <span className="font-bold text-900">${(activeOrderTotal - activeOrderPaid).toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-content-between mb-2 align-items-center bg-white p-2 border-round">
+                                        <span className="text-primary font-bold">Abonar Hoy:</span>
+                                        <span className="font-bold text-primary text-lg">-${advanceAmount.toFixed(2)}</span>
                                     </div>
                                     <div className="border-top-1 surface-border my-2"></div>
                                     <div className="flex justify-content-between align-items-center">
-                                        <span className="text-900 font-medium">Restante por cobrar:</span>
-                                        <span className={`text-lg font-bold ${(activeOrderTotal - advanceAmount) <= 0.1 ? 'text-green-500' : 'text-red-500'}`}>
-                                            ${Math.max(0, activeOrderTotal - advanceAmount).toFixed(2)}
+                                        <span className="text-900 font-medium">Restante Final:</span>
+                                        <span className={`text-lg font-bold ${(activeOrderTotal - activeOrderPaid - advanceAmount) <= 0.1
+                                            ? 'text-green-500'
+                                            : 'text-red-500'
+                                            }`}>
+                                            ${Math.max(0, activeOrderTotal - activeOrderPaid - advanceAmount).toFixed(2)}
                                         </span>
                                     </div>
                                 </div>
@@ -834,14 +980,17 @@ const Counter = () => {
                                     onChange={(e) => setOrderNotes(e.target.value)}
                                     placeholder="Referencia de pago / Notas..."
                                 />
-
                                 <Button
                                     label="Confirmar Pago"
                                     icon="pi pi-check-circle"
                                     size="large"
                                     className="mt-auto w-full shadow-3"
                                     onClick={handleConfirmOrder}
-                                    disabled={advanceAmount <= 0}
+                                    disabled={
+                                        !advanceAmount ||
+                                        advanceAmount <= 0 ||
+                                        advanceAmount > (activeOrderTotal - activeOrderPaid + 0.5)
+                                    }
                                 />
                             </div>
                         </div>

@@ -5,7 +5,8 @@ import {
     EstatusSolicitud,
     TipoMovimiento
 } from "@/app/types/catalog";
-import { Producto } from "@/app/types/orders";
+import { CondicionPago, Producto } from "@/app/types/orders";
+import { OrderList } from "primereact/orderlist";
 
 // Apuntamos al microservicio de operaciones/órdenes
 const ORDERS_API = process.env.NEXT_PUBLIC_ORDERS_API_URL;
@@ -15,6 +16,12 @@ export const CatalogService = {
     async getRegimenesFiscales(): Promise<RegimenFiscal[]> {
         const res = await fetch(`${ORDERS_API}/operaciones/regimenes-fiscales`);
         if (!res.ok) throw new Error("Error al cargar regímenes fiscales");
+        return await res.json();
+    },
+
+        async getCondicionesPago(): Promise<CondicionPago[]> {
+        const res = await fetch(`${ORDERS_API}/operaciones/condiciones-pago`);
+        if (!res.ok) throw new Error("Error al cargar condiciones de pago");
         return await res.json();
     },
 
@@ -42,9 +49,15 @@ export const CatalogService = {
         return await res.json();
     },
 
-    async buscarProductos(query: string): Promise<Producto[]> {
+    async getProductos(query: string): Promise<Producto[]> {
         const res = await fetch(`${ORDERS_API}/operaciones/productos?q=${query}`);
         if (!res.ok) throw new Error("Error al buscar productos");
+        return await res.json();
+    },
+
+    async getAllProductos(): Promise<Producto[]> {
+        const res = await fetch(`${ORDERS_API}/operaciones/productos`);
+        if (!res.ok) throw new Error("Error al cargar los productos");
         return await res.json();
     }
 };

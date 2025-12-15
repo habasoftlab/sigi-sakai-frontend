@@ -31,7 +31,7 @@ export const OrderService = {
         }
         return true;
     },
-    
+
     async subirArchivo(idOrden: number, archivo: File) {
         const formData = new FormData();
         formData.append('file', archivo);
@@ -70,10 +70,16 @@ export const OrderService = {
         return await res.json();
     },
 
-    async getOrdenes(): Promise<any[]> {
-        const res = await fetch(`${ORDERS_API}/ordenes`);
-        if (!res.ok) throw new Error("Error al obtener lista de órdenes");
-        return await res.json();
+    async getOrdenes(page = 0, size = 20) {
+        const params = new URLSearchParams({
+            page: page.toString(),
+            size: size.toString(),
+        });
+        const response = await fetch(`${ORDERS_API}/ordenes?${params.toString()}`);
+        if (!response.ok) {
+            throw new Error("Error al obtener lista de órdenes");
+        }
+        return await response.json();
     },
 
     async getOrdenById(id: number) {
