@@ -9,7 +9,7 @@ import { InputText } from 'primereact/inputtext';
 import { FilterMatchMode } from 'primereact/api';
 import Link from 'next/link';
 import { ClientService } from "@/app/service/clientService";
-import { CatalogService } from "@/app/service/catalogServices";
+import { CatalogService } from "@/app/service/catalogService";
 import { Client } from "@/app/types/clients";
 import { ClientFormDialog } from "@/app/components/ClientFormDialog";
 

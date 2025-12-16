@@ -9,7 +9,7 @@ import { Toast } from 'primereact/toast';
 import { classNames } from 'primereact/utils';
 
 import { ClientService } from "@/app/service/clientService";
-import { CatalogService } from "@/app/service/catalogServices";
+import { CatalogService } from "@/app/service/catalogService";
 import { Client, ClientRequest } from "@/app/types/clients";
 
 interface DropdownOption {
@@ -86,32 +86,34 @@ export const ClientFormDialog = ({ visible, onHide, onSuccess, clientToEdit }: P
 
         try {
             let resultClient: Client;
+
             if (clientToEdit && clientToEdit.id) {
                 await ClientService.update(clientToEdit.id, payload);
                 resultClient = { ...clientToEdit, ...payload } as Client;
                 toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Cliente actualizado' });
             } else {
-                resultClient = await ClientService.create(payload);
+                const response = await ClientService.create(payload);
+                console.log("Respuesta RAW del Backend al crear:", response);
+                resultClient = {
+                    ...response,
+                    id: response.id || response.idCliente,
+                    idCliente: response.idCliente || response.id
+                } as Client;
                 toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Cliente creado' });
             }
-
             onSuccess(resultClient);
             onHide();
         } catch (error: any) {
             console.error("Error al guardar:", error);
-
-            // Lógica para extraer el mensaje:
-            // 1. Intentamos leer error.message (que coincide con tu JSON)
-            // 2. Si no existe, usamos un mensaje genérico de respaldo.
             const errorMessage = error?.message || 'No se pudo guardar. Verifique los datos.';
-
             toast.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: errorMessage // Aquí inyectamos el texto dinámico
+                detail: errorMessage
             });
         }
     };
+
     const onInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, name: string) => {
         const val = (e.target && e.target.value) || '';
         setClientData(prev => ({ ...prev, [name]: val }));

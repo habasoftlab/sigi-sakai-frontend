@@ -17,7 +17,7 @@ import Link from 'next/link';
 
 // SERVICIOS
 import { ClientService } from "@/app/service/clientService";
-import { CatalogService } from "@/app/service/catalogServices";
+import { CatalogService } from "@/app/service/catalogService";
 import { OrderService } from "@/app/service/orderService";
 import { Client } from "@/app/types/clients";
 import { Producto, NuevaOrdenRequest } from "@/app/types/orders";
@@ -25,7 +25,6 @@ import { ClientFormDialog } from "@/app/components/ClientFormDialog";
 import { ClientSearchDialog } from "@/app/components/ClientSearchDialog";
 import { UserService } from "@/app/service/userService";
 
-const CURRENT_USER_ID = 2;
 interface QuoteItemUI extends Producto {
     cantidad: number;
     importe: number;
@@ -36,6 +35,7 @@ const Counter = () => {
     const [clients, setClients] = useState<Client[]>([]);
     const [designers, setDesigners] = useState<any[]>([]);
     const [productsCatalog, setProductsCatalog] = useState<any[]>([]);
+    const [currentUserId, setCurrentUserId] = useState<number>(0);
 
     // ESTADO DEL CARRITO / ORDEN ACTUAL
     const [quoteItems, setQuoteItems] = useState<QuoteItemUI[]>([]);
@@ -110,6 +110,14 @@ const Counter = () => {
         loadOrderHistory();
         loadProductsCatalog();
         loadConditions();
+    }, []);
+
+    useEffect(() => {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            setCurrentUserId(user.idUsuario);
+        }
     }, []);
 
     const loadClients = async () => {
@@ -251,7 +259,7 @@ const Counter = () => {
         if (!assignedClient) { toast.current?.show({ severity: 'warn', detail: 'Asigna un cliente' }); return; }
         const nuevaOrden: NuevaOrdenRequest = {
             orden: {
-                idUsuario: CURRENT_USER_ID,
+                idUsuario: currentUserId,
                 idUsuarioDisenador: selectedDesigner,
                 idCliente: assignedClient.id!,
                 montoTotal: quoteTotal,
@@ -267,7 +275,7 @@ const Counter = () => {
                 precioUnitario: i.precioUnitario,
                 importe: i.importe
             })),
-            idUsuarioAccion: CURRENT_USER_ID
+            idUsuarioAccion: currentUserId
         };
 
         try {
@@ -385,11 +393,11 @@ const Counter = () => {
                 await OrderService.registrarPago(activeOrderId, {
                     monto: advanceAmount,
                     referencia: `Pago ${paymentType} - ${orderNotes}`,
-                    idUsuario: CURRENT_USER_ID
+                    idUsuario: currentUserId
                 });
             }
             if (activeOrderStatus === 1) {
-                const statusUpdateBody = { idUsuario: CURRENT_USER_ID };
+                const statusUpdateBody = { idUsuario: currentUserId };
                 await OrderService.avanzarEstatus(activeOrderId, statusUpdateBody);
             }
             toast.current?.show({

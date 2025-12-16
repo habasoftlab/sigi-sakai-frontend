@@ -1,73 +1,116 @@
 /* eslint-disable @next/next/no-img-element */
-
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import AppMenuitem from './AppMenuitem';
 import { LayoutContext } from './context/layoutcontext';
 import { MenuProvider } from './context/menucontext';
-import Link from 'next/link';
 import { AppMenuItem } from '@/types';
 
 const AppMenu = () => {
     const { layoutConfig } = useContext(LayoutContext);
+    const [filteredModel, setFilteredModel] = useState<AppMenuItem[]>([]);
 
-    const model: AppMenuItem[] = [
-        {
-            label: 'Inicio',
-            items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/' },
-                    { label: 'Mostrador', icon: 'pi pi-fw pi-desktop', to: '/counter' },
-                    { label: 'Lista de Cotizaciones', icon: 'pi pi-fw pi-file', to: '/listquote' },
-                    { label: 'Lista de Ordenes', icon: 'pi pi-fw pi-wallet', to: '/listorder' },
-            ]
-        },
-        {
-            label: 'Paginas',
-            icon: 'pi pi-fw pi-briefcase',
-            to: '/pages',
-            items: [
-                {
-                    label: 'Autenticacion',
-                    icon: 'pi pi-fw pi-user',
-                    items: [
-                        {
-                            label: 'Inicio de sesion',
-                            icon: 'pi pi-fw pi-sign-in',
-                            to: '/auth/login'
-                        },
-                        {
-                            label: 'Registrar nuevo empleado',
-                            icon: 'pi pi-fw pi-user-plus',
-                            to: '/auth/register'
-                        },
-                    ]
-                },
-                {
-                    label: 'Estatus orden',
-                    icon: 'pi pi-fw pi-calendar',
-                    to: '/timeline'
-                },
-                {
-                    label: 'Lista de clientes',
-                    icon: 'pi pi-fw pi-book',
-                    to: '/listclient'
-                },
-                {
-                    label: 'Lista de Ordenes - Disenador',
-                    icon: 'pi pi-fw pi-palette',
-                    to: '/designerlist'
-                },
-                                {
-                    label: 'Lista de Ordenes - Jefe de Taller',
-                    icon: 'pi pi-fw pi-briefcase',
-                    to: '/workshoplist'
-                },
-            ]
-        }
-    ];
+    useEffect(() => {
+        const userStr = localStorage.getItem('user');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const userPermisos: string[] = user?.permisos || [];
+        const fullModel: any[] = [
+            {
+                label: 'Inicio',
+                items: [
+                    {
+                        label: 'Dashboard',
+                        icon: 'pi pi-fw pi-home',
+                        to: '/',
+                        permiso: 'VER_DASHBOARD'
+                    },
+                    {
+                        label: 'Mostrador',
+                        icon: 'pi pi-fw pi-desktop',
+                        to: '/counter',
+                        permiso: 'GESTIONAR_COTIZACIONES' // Admins y Mostrador
+                    },
+                    {
+                        label: 'Lista de Cotizaciones',
+                        icon: 'pi pi-fw pi-file',
+                        to: '/listquote',
+                        permiso: 'GESTIONAR_COTIZACIONES'
+                    },
+                    {
+                        label: 'Lista de Ordenes',
+                        icon: 'pi pi-fw pi-wallet',
+                        to: '/listorder',
+                        permiso: 'GESTIONAR_ORDENES'
+                    },
+                ]
+            },
+            {
+                label: 'Paginas',
+                icon: 'pi pi-fw pi-briefcase',
+                to: '/pages',
+                items: [
+                    {
+                        label: 'Administración',
+                        icon: 'pi pi-fw pi-user',
+                        items: [
+                            {
+                                label: 'Registrar nuevo empleado',
+                                icon: 'pi pi-fw pi-user-plus',
+                                to: '/auth/register',
+                                permiso: 'GESTIONAR_USUARIOS'
+                            },
+                        ]
+                    },
+                    {
+                        label: 'Estatus orden',
+                        icon: 'pi pi-fw pi-calendar',
+                        to: '/timeline',
+                    },
+                    {
+                        label: 'Lista de clientes',
+                        icon: 'pi pi-fw pi-book',
+                        to: '/listclient',
+                        permiso: 'GESTIONAR_CLIENTES'
+                    },
+                    {
+                        label: 'Lista de Ordenes - Disenador',
+                        icon: 'pi pi-fw pi-palette',
+                        to: '/designerlist',
+                        permiso: 'VER_PANEL_DISENO'
+                    },
+                    {
+                        label: 'Lista de Ordenes - Jefe de Taller',
+                        icon: 'pi pi-fw pi-briefcase',
+                        to: '/workshoplist',
+                        permiso: 'VER_PANEL_TALLER'
+                    },
+                ]
+            }
+        ];
+
+        const filterMenuByPermissions = (items: any[]): any[] => {
+            return items.reduce((acc, item) => {
+                const hasPermission = !item.permiso || userPermisos.includes(item.permiso);
+                if (hasPermission) {
+                    if (item.items) {
+                        const filteredItems = filterMenuByPermissions(item.items);
+                        if (filteredItems.length > 0 || item.items.length === 0) {
+                            acc.push({ ...item, items: filteredItems });
+                        }
+                    } else {
+                        acc.push(item);
+                    }
+                }
+                return acc;
+            }, []);
+        };
+        const menuFiltered = filterMenuByPermissions(fullModel);
+        setFilteredModel(menuFiltered);
+    }, []);
 
     return (
         <MenuProvider>
             <ul className="layout-menu">
-                {model.map((item, i) => {
+                {filteredModel.map((item, i) => {
                     return !item?.seperator ? <AppMenuitem item={item} root={true} index={i} key={item.label} /> : <li className="menu-separator"></li>;
                 })}
             </ul>
