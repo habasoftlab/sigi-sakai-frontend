@@ -813,7 +813,7 @@ const Counter = () => {
                         {/* COLUMNA IZQUIERDA: DETALLES Y ARCHIVOS */}
                         <div className="col-12 lg:col-8">
                             <div className="surface-card p-4 border-round shadow-1 h-full">
-                                <h3 className="mb-4 text-gray-700 text-xl font-bold flex align-items-center gap-2">
+                                <h3 className="mb-4 text-700 text-xl font-bold flex align-items-center gap-2">
                                     <i className="pi pi-list text-primary"></i>
                                     Detalle de la Orden
                                 </h3>
@@ -839,7 +839,7 @@ const Counter = () => {
 
                                 <div className="flex justify-content-end mt-5">
                                     <div className="text-right p-3 border-round surface-50 border-1 border-200">
-                                        <span className="text-xl text-gray-600 mr-3">
+                                        <span className="text-xl text-600 mr-3">
                                             {activeOrderItems.length > 0 ? "Total de la Orden:" : "Total de la Orden:"}
                                         </span>
                                         <span className="text-3xl font-bold text-primary">${activeOrderTotal.toFixed(2)}</span>
@@ -848,7 +848,7 @@ const Counter = () => {
                                 <Divider />
 
                                 <div className="mb-4">
-                                    <label className="font-bold block mb-2 text-gray-700">
+                                    <label className="font-bold block mb-2 text-700">
                                         <i className="pi pi-cloud-upload mr-2"></i>
                                         Archivos / Diseño
                                     </label>
@@ -862,7 +862,7 @@ const Counter = () => {
                                         chooseLabel="Examinar"
                                         uploadLabel="Subir"
                                         cancelLabel="Cancelar"
-                                        emptyTemplate={<p className="m-0 p-3 text-center text-gray-500">Arrastra archivos aquí si es necesario.</p>}
+                                        emptyTemplate={<p className="m-0 p-3 text-center text-500">Arrastra archivos aquí.</p>}
                                     />
                                 </div>
                             </div>
@@ -871,7 +871,7 @@ const Counter = () => {
                         {/* COLUMNA DERECHA: LÓGICA FINANCIERA */}
                         <div className="col-12 lg:col-4">
                             <div className="surface-card p-4 border-round shadow-1 h-full flex flex-column">
-                                <h3 className="mb-3 text-gray-700 text-xl font-bold">Método de Pago</h3>
+                                <h3 className="mb-3 text-700 text-xl font-bold">Método de Pago</h3>
                                 <div className="flex flex-column gap-2 mb-4">
                                     {/* LIQUIDAR: Bloqueará el input y pone el saldo restante */}
                                     <Button
@@ -914,7 +914,7 @@ const Counter = () => {
                                 <Divider />
                                 {/* Input del Monto */}
                                 <div className="mb-2">
-                                    <label className="font-bold block mb-2 text-gray-700">Monto a cobrar hoy</label>
+                                    <label className="font-bold block mb-2 text-700">Monto a cobrar hoy</label>
                                     <div className="p-inputgroup">
                                         <span className="p-inputgroup-addon text-green-600 font-bold">$</span>
                                         <InputNumber

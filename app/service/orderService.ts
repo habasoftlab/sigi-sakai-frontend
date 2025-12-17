@@ -1,6 +1,5 @@
 import { NuevaOrdenRequest, AvanzarEstatusRequest } from '@/app/types/orders';
 
-// Definimos la URL específica para este microservicio
 const ORDERS_API = process.env.NEXT_PUBLIC_ORDERS_API_URL;
 
 export const OrderService = {
@@ -70,12 +69,12 @@ export const OrderService = {
         return await res.json();
     },
 
-    async getOrdenes(page = 0, size = 20) {
+    async getOrdenes(page = 0, size = 10) {
         const params = new URLSearchParams({
             page: page.toString(),
             size: size.toString(),
         });
-        const response = await fetch(`${ORDERS_API}/ordenes?${params.toString()}`);
+        const response = await fetch(`${ORDERS_API}/ordenes?${params.toString()}&sort=idOrden,desc`);
         if (!response.ok) {
             throw new Error("Error al obtener lista de órdenes");
         }

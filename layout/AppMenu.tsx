@@ -27,7 +27,7 @@ const AppMenu = () => {
                         label: 'Mostrador',
                         icon: 'pi pi-fw pi-desktop',
                         to: '/counter',
-                        permiso: 'GESTIONAR_COTIZACIONES' // Admins y Mostrador
+                        permiso: 'GESTIONAR_COTIZACIONES'
                     },
                     {
                         label: 'Lista de Cotizaciones',
@@ -59,11 +59,6 @@ const AppMenu = () => {
                                 permiso: 'GESTIONAR_USUARIOS'
                             },
                         ]
-                    },
-                    {
-                        label: 'Estatus orden',
-                        icon: 'pi pi-fw pi-calendar',
-                        to: '/timeline',
                     },
                     {
                         label: 'Lista de clientes',

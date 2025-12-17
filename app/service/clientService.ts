@@ -3,6 +3,7 @@ import { Client, ClientRequest } from "@/app/types/clients";
 const API_URL = process.env.NEXT_PUBLIC_USERS_API_URL;
 
 export const ClientService = {
+    
     async getAll(): Promise<Client[]> {
         const res = await fetch(`${API_URL}/clientes`);
         if (!res.ok) throw new Error("Error al obtener clientes");
