@@ -62,6 +62,10 @@ const RegisterPage = () => {
         }
     };
 
+    const handleReturn = () => {
+        router.back();
+    };
+
     return (
         <div className={containerClassName}>
             <Toast ref={toast} />
@@ -76,7 +80,7 @@ const RegisterPage = () => {
                 }}>
                     <div className="w-full surface-card py-8 px-5 sm:px-8" style={{ borderRadius: '53px' }}>
                         <div className="text-center mb-5">
-                            <div className="text-900 text-3xl font-medium mb-3">Bienvenido!</div>
+                            <div className="text-900 text-3xl font-medium mb-2">Bienvenido!</div>
                             <span className="text-600 font-medium">Agregar colaborador</span>
                         </div>
 
@@ -88,7 +92,7 @@ const RegisterPage = () => {
                                 placeholder="Nombre"
                                 value={nombre}
                                 onChange={(e) => setNombre(e.target.value)}
-                                className="w-full md:w-30rem mb-4"
+                                className="w-full md:w-30rem mb-2"
                                 style={{ padding: '1rem' }}
                             />
 
@@ -99,7 +103,7 @@ const RegisterPage = () => {
                                 placeholder="Correo Electronico"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full md:w-30rem mb-4"
+                                className="w-full md:w-30rem mb-2"
                                 style={{ padding: '1rem' }}
                             />
 
@@ -111,7 +115,7 @@ const RegisterPage = () => {
                                 options={roles}
                                 optionLabel="label"
                                 placeholder="Selecciona su rol"
-                                className="w-full md:w-30rem mb-4"
+                                className="w-full md:w-30rem mb-2"
                                 style={{ padding: '0.2rem' }}
                             />
 
@@ -124,17 +128,23 @@ const RegisterPage = () => {
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Contraseña"
                                 toggleMask
-                                className="w-full mb-4"
+                                className="w-full mb-2"
                                 inputClassName="w-full p-3 md:w-30rem"
                             />
 
-                            <div className="flex align-items-center justify-content-between mb-5 gap-5">
+                            <div className="flex align-items-center justify-content-between mb-4 gap-4">
                             </div>
 
                             <Button
                                 label="Agregar"
-                                className="w-full p-3 text-xl"
+                                className="w-full p-3 mb-2 text-xl"
                                 onClick={handleRegistrar}
+                            ></Button>
+                            <Button
+                                label="Volver a la pagina anterior"
+                                icon="pi pi-arrow-left"
+                                className="w-full p-1 text-g p-button-secondary"
+                                onClick={handleReturn}
                             ></Button>
                         </div>
                     </div>

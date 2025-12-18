@@ -60,6 +60,7 @@ const Counter = () => {
     const [paymentConditions, setPaymentConditions] = useState<any[]>([]);
     const [activeOrderStatus, setActiveOrderStatus] = useState<number>(0);
     const [activeOrderPaid, setActiveOrderPaid] = useState(0);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     // DATOS PARA LISTAS
     const [ShowOrdersList, setShowOrdersList] = useState(false);
@@ -400,6 +401,23 @@ const Counter = () => {
                 const statusUpdateBody = { idUsuario: currentUserId };
                 await OrderService.avanzarEstatus(activeOrderId, statusUpdateBody);
             }
+            if (selectedFile) {
+                try {
+                    const respuestaSubida = await OrderService.subirArchivo(activeOrderId, selectedFile);
+                    toast.current?.show({
+                        severity: 'info',
+                        summary: 'Archivo Subido',
+                        detail: 'El archivo se adjuntó a la orden correctamente.'
+                    });
+                } catch (fileError) {
+                    console.error("Error subiendo archivo:", fileError);
+                    toast.current?.show({
+                        severity: 'warn',
+                        summary: 'Advertencia',
+                        detail: 'El pago se registró, pero falló la subida del archivo.'
+                    });
+                }
+            }
             toast.current?.show({
                 severity: 'success',
                 summary: 'Orden Confirmada',
@@ -411,6 +429,7 @@ const Counter = () => {
             setAdvanceAmount(0);
             setActiveOrderItems([]);
             loadOrderHistory();
+            setSelectedFile(null);
         } catch (error: any) {
             const msg = error.message || error.details || "No se pudo procesar la solicitud.";
             toast.current?.show({
@@ -854,14 +873,21 @@ const Counter = () => {
                                     </label>
                                     <FileUpload
                                         name="demo[]"
-                                        customUpload
-                                        uploadHandler={onTemplateUpload}
                                         mode="advanced"
                                         accept="image/*,application/pdf"
                                         maxFileSize={10000000}
-                                        chooseLabel="Examinar"
-                                        uploadLabel="Subir"
+                                        chooseLabel="Seleccionar"
+                                        uploadLabel="Guardar"
                                         cancelLabel="Cancelar"
+                                        customUpload
+                                        auto={false}
+                                        onSelect={(e) => {
+                                            if (e.files && e.files.length > 0) {
+                                                setSelectedFile(e.files[0]);
+                                            }
+                                        }}
+                                        onRemove={() => setSelectedFile(null)}
+                                        onClear={() => setSelectedFile(null)}
                                         emptyTemplate={<p className="m-0 p-3 text-center text-500">Arrastra archivos aquí.</p>}
                                     />
                                 </div>

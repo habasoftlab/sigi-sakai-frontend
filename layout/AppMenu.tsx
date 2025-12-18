@@ -4,10 +4,12 @@ import AppMenuitem from './AppMenuitem';
 import { LayoutContext } from './context/layoutcontext';
 import { MenuProvider } from './context/menucontext';
 import { AppMenuItem } from '@/types';
+import { useRouter } from 'next/navigation';
 
 const AppMenu = () => {
     const { layoutConfig } = useContext(LayoutContext);
     const [filteredModel, setFilteredModel] = useState<AppMenuItem[]>([]);
+    const router = useRouter();
 
     useEffect(() => {
         const userStr = localStorage.getItem('user');
@@ -30,14 +32,20 @@ const AppMenu = () => {
                         permiso: 'GESTIONAR_COTIZACIONES'
                     },
                     {
+                        label: 'Lista de clientes',
+                        icon: 'pi pi-fw pi-users',
+                        to: '/listclient',
+                        permiso: 'GESTIONAR_CLIENTES'
+                    },
+                    {
                         label: 'Lista de Cotizaciones',
-                        icon: 'pi pi-fw pi-file',
+                        icon: 'pi pi-fw pi-list',
                         to: '/listquote',
                         permiso: 'GESTIONAR_COTIZACIONES'
                     },
                     {
                         label: 'Lista de Ordenes',
-                        icon: 'pi pi-fw pi-wallet',
+                        icon: 'pi pi-fw pi-inbox',
                         to: '/listorder',
                         permiso: 'GESTIONAR_ORDENES'
                     },
@@ -59,12 +67,6 @@ const AppMenu = () => {
                                 permiso: 'GESTIONAR_USUARIOS'
                             },
                         ]
-                    },
-                    {
-                        label: 'Lista de clientes',
-                        icon: 'pi pi-fw pi-book',
-                        to: '/listclient',
-                        permiso: 'GESTIONAR_CLIENTES'
                     },
                     {
                         label: 'Lista de Ordenes - Disenador',
@@ -102,12 +104,34 @@ const AppMenu = () => {
         setFilteredModel(menuFiltered);
     }, []);
 
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        router.push('/auth/login');
+    };
+
     return (
         <MenuProvider>
             <ul className="layout-menu">
                 {filteredModel.map((item, i) => {
                     return !item?.seperator ? <AppMenuitem item={item} root={true} index={i} key={item.label} /> : <li className="menu-separator"></li>;
                 })}
+                <li className="menu-separator"></li>
+                <li className="layout-root-menuitem">
+                    <div className="layout-menuitem-root-text">Cuenta</div>
+                    <ul>
+                        <li>
+                            <a
+                                onClick={handleLogout}
+                                className="p-ripple cursor-pointer"
+                                style={{ display: 'flex', alignItems: 'center', padding: '0.75rem 1rem' }}
+                            >
+                                <i className="pi pi-fw pi-power-off layout-menuitem-icon mr-2"></i>
+                                <span className="layout-menuitem-text">Cerrar Sesión</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
             </ul>
         </MenuProvider>
     );
