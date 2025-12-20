@@ -49,13 +49,6 @@ const AppMenu = () => {
                         to: '/listorder',
                         permiso: 'GESTIONAR_ORDENES'
                     },
-                ]
-            },
-            {
-                label: 'Paginas',
-                icon: 'pi pi-fw pi-briefcase',
-                to: '/pages',
-                items: [
                     {
                         label: 'Administración',
                         icon: 'pi pi-fw pi-user',
@@ -68,6 +61,11 @@ const AppMenu = () => {
                             },
                         ]
                     },
+                ]
+            },
+            {
+                label: 'Areas de Trabajo',
+                items: [
                     {
                         label: 'Lista de Ordenes - Disenador',
                         icon: 'pi pi-fw pi-palette',
@@ -76,7 +74,7 @@ const AppMenu = () => {
                     },
                     {
                         label: 'Lista de Ordenes - Jefe de Taller',
-                        icon: 'pi pi-fw pi-briefcase',
+                        icon: 'pi pi-fw pi-cog',
                         to: '/workshoplist',
                         permiso: 'VER_PANEL_TALLER'
                     },

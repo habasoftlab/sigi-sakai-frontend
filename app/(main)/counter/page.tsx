@@ -24,6 +24,7 @@ import { Producto, NuevaOrdenRequest } from "@/app/types/orders";
 import { ClientFormDialog } from "@/app/components/ClientFormDialog";
 import { ClientSearchDialog } from "@/app/components/ClientSearchDialog";
 import { UserService } from "@/app/service/userService";
+import { Tag } from 'primereact/tag';
 
 interface QuoteItemUI extends Producto {
     cantidad: number;
@@ -55,19 +56,19 @@ const Counter = () => {
     const [showAssignClientDialog, setShowAssignClientDialog] = useState(false);
     const [showQuantityDialog, setShowQuantityDialog] = useState(false);
     const [showOrderSummary, setShowOrderSummary] = useState(false);
-    const [expandedRows, setExpandedRows] = useState<any>([]);
     const [activeOrderItems, setActiveOrderItems] = useState<any[]>([]);
     const [paymentConditions, setPaymentConditions] = useState<any[]>([]);
     const [activeOrderStatus, setActiveOrderStatus] = useState<number>(0);
     const [activeOrderPaid, setActiveOrderPaid] = useState(0);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [orderNotes, setOrderNotes] = useState('');
+
 
     // DATOS PARA LISTAS
     const [ShowOrdersList, setShowOrdersList] = useState(false);
     const [ordersList, setOrdersList] = useState<any[]>([]);
     const [quotesList, setQuotesList] = useState<any[]>([]);
     const [isLoadingList, setIsLoadingList] = useState(false);
-    const [orderNotes, setOrderNotes] = useState('');
     const [ShowQuoteList, setShowQuotesList] = useState(false);
     const [statusMap, setStatusMap] = useState<any>({});
     const [totalRecords, setTotalRecords] = useState(0);
@@ -76,6 +77,8 @@ const Counter = () => {
         rows: 10,
         page: 0
     });
+    const [expandedRows, setExpandedRows] = useState<any>([]);
+
 
     // VARIABLES TEMPORALES (Inputs)
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -120,6 +123,56 @@ const Counter = () => {
             setCurrentUserId(user.idUsuario);
         }
     }, []);
+
+    useEffect(() => {
+        if (ShowQuoteList) {
+            setLazyParams({ first: 0, rows: 10, page: 0 });
+            setExpandedRows([]);
+            loadList('quotes', 0, 10);
+        }
+    }, [ShowQuoteList]);
+
+    useEffect(() => {
+        if (ShowOrdersList) {
+            setLazyParams({ first: 0, rows: 10, page: 0 });
+            setExpandedRows([]);
+            loadList('orders', 0, 10);
+        }
+    }, [ShowOrdersList]);
+
+    const loadList = async (type: 'quotes' | 'orders', page: number, rows: number) => {
+        setIsLoadingList(true);
+        try {
+            let response;
+
+            if (type === 'quotes') {
+                response = await OrderService.getCotizacionesYCanceladas(page, rows);
+            } else {
+                response = await OrderService.getOrdenesActivas(page, rows);
+            }
+            const data = response.content || [];
+            const total = response.totalElements || 0;
+            const processedData = data.map((item: any) => {
+                const designerName = designers.find((d: any) => d.value === item.idUsuarioDisenador)?.label || 'Sin Asignar';
+                return { ...item, nombreDisenador: designerName };
+            });
+            processedData.sort((a: any, b: any) => {
+                if (a.nombreDisenador < b.nombreDisenador) return -1;
+                if (a.nombreDisenador > b.nombreDisenador) return 1;
+                return 0;
+            });
+            if (type === 'quotes') {
+                setQuotesList(processedData);
+            } else {
+                setOrdersList(processedData);
+            }
+            setTotalRecords(total);
+        } catch (error) {
+            console.error("Error cargando lista", error);
+        } finally {
+            setIsLoadingList(false);
+        }
+    };
 
     const loadClients = async () => {
         try {
@@ -242,18 +295,12 @@ const Counter = () => {
 
     const onPage = (event: any) => {
         setLazyParams(event);
-        loadOrderHistory(event.page, event.rows);
-    };
-
-    const handleAddPayment = (orderRow: any) => {
-        setActiveOrderId(orderRow.idOrden);
-        setActiveOrderTotal(orderRow.saldoPendiente);
-        setQuoteItems([]);
-        setShowOrdersList(false);
-        setPaymentType('unico');
-        setAdvanceAmount(orderRow.saldoPendiente);
-        setOrderNotes('');
-        setShowOrderSummary(true);
+        const newPage = event.first / event.rows;
+        if (ShowQuoteList) {
+            loadList('quotes', newPage, event.rows);
+        } else if (ShowOrdersList) {
+            loadList('orders', newPage, event.rows);
+        }
     };
 
     const handleCreateQuote = async () => {
@@ -300,16 +347,6 @@ const Counter = () => {
     const handleClearScreen = () => {
         setQuoteItems([]); setAssignedClient(null); setSelectedProduct(null);
         setActiveOrderId(null); setActiveOrderTotal(0);
-    };
-
-    const onTemplateUpload = async (e: FileUploadHandlerEvent) => {
-        if (activeOrderId) {
-            await OrderService.subirArchivo(activeOrderId, e.files[0]);
-            toast.current?.show({ severity: 'success', detail: 'Archivo subido' });
-            e.options.clear();
-        } else {
-            toast.current?.show({ severity: 'warn', detail: 'Solo se pueden subir archivos a órdenes activas' });
-        }
     };
 
     const searchProduct = async (e: AutoCompleteCompleteEvent) => {
@@ -403,7 +440,7 @@ const Counter = () => {
             }
             if (selectedFile) {
                 try {
-                    const respuestaSubida = await OrderService.subirArchivo(activeOrderId, selectedFile);
+                    await OrderService.subirArchivo(activeOrderId, selectedFile);
                     toast.current?.show({
                         severity: 'info',
                         summary: 'Archivo Subido',
@@ -594,7 +631,7 @@ const Counter = () => {
                     <Button label="Cotizar" icon="pi pi-money-bill" className="p-button-lg" onClick={() => setShowQuoteSummary(true)} disabled={quoteItems.length === 0} />
                 </div>
 
-                {/* MODAL: LISTA DE COTIZACIONES */}
+                {/* MODAL: LISTA DE COTIZACIONES*/}
                 <Dialog
                     header="Lista de Cotizaciones"
                     visible={ShowQuoteList}
@@ -603,16 +640,18 @@ const Counter = () => {
                     onHide={() => setShowQuotesList(false)}
                 >
                     <DataTable
+                        value={quotesList}
                         lazy={true}
+                        dataKey="idOrden"
                         paginator={true}
                         first={lazyParams.first}
                         rows={lazyParams.rows}
                         totalRecords={totalRecords}
                         onPage={onPage}
-                        rowsPerPageOptions={[5, 10]}
-                        value={quotesList}
+                        rowsPerPageOptions={[5, 10, 20]}
                         loading={isLoadingList}
-                        emptyMessage="No hay cotizaciones."
+                        emptyMessage="No se encontraron cotizaciones."
+                        // Configuración de Agrupamiento
                         rowGroupMode="subheader"
                         groupRowsBy="nombreDisenador"
                         sortMode="single"
@@ -641,7 +680,7 @@ const Counter = () => {
                             style={{ width: '30%' }}
                             body={(d) => {
                                 const c = clients.find(cl => cl.id === d.idCliente);
-                                return c ? c.nombre : 'Desconocido';
+                                return c ? c.nombre : 'Público General';
                             }}
                         />
                         <Column
@@ -649,9 +688,10 @@ const Counter = () => {
                             header="Total"
                             body={(d) => `$${d.montoTotal.toFixed(2)}`}
                             style={{ width: '20%' }}
+                            className="text-right font-medium"
                         />
                         <Column
-                            header=""
+                            header="Acción"
                             style={{ width: '15%', textAlign: 'center' }}
                             body={(data) => (
                                 <Button
@@ -660,29 +700,34 @@ const Counter = () => {
                                     size="small"
                                     severity="info"
                                     onClick={() => handleOrder(data)}
+                                    tooltip="Ver detalles y editar"
                                 />
                             )}
                         />
                     </DataTable>
                 </Dialog>
 
-                {/* MODAL: LISTA DE ÓRDENES */}
+                {/* MODAL: LISTA DE ÓRDENES ACTIVAS*/}
                 <Dialog
-                    header="Lista de Órdenes"
+                    header="Lista de Órdenes en Curso"
                     visible={ShowOrdersList}
                     style={{ width: '80vw' }}
                     modal
                     onHide={() => setShowOrdersList(false)}
                 >
                     <DataTable
+                        value={ordersList}
                         lazy={true}
+                        dataKey="idOrden"
                         paginator={true}
                         first={lazyParams.first}
                         rows={lazyParams.rows}
                         totalRecords={totalRecords}
                         onPage={onPage}
-                        rowsPerPageOptions={[5, 10]}
-                        value={ordersList}
+                        rowsPerPageOptions={[5, 10, 20]}
+                        loading={isLoadingList}
+                        emptyMessage="No hay órdenes activas por el momento."
+                        // Configuración de Agrupamiento
                         rowGroupMode="subheader"
                         groupRowsBy="nombreDisenador"
                         sortMode="single"
@@ -693,16 +738,42 @@ const Counter = () => {
                         expandedRows={expandedRows}
                         onRowToggle={(e) => setExpandedRows(e.data)}
                     >
-                        <Column field="idOrden" header="Folio" sortable style={{ width: '10%' }} />
+                        <Column field="idOrden" header="Folio" style={{ width: '10%' }} className="font-bold" />
                         <Column field="fechaCreacion" header="Fecha" body={(d) => new Date(d.fechaCreacion).toLocaleDateString()} style={{ width: '15%' }} />
-                        <Column header="Cliente" field="idCliente" sortable body={(d) => clients.find(c => c.id === d.idCliente)?.nombre || 'Desconocido'} />
-                        <Column field="montoTotal" header="Total" body={(d) => `$${d.montoTotal.toFixed(2)}`} />
-                        <Column field="saldoPendiente" header="Saldo" body={(d) => <span className={d.saldoPendiente > 0 ? 'text-red-500 font-bold' : 'text-green-500'}>${d.saldoPendiente?.toFixed(2)}</span>} />
-                        <Column header="Pagos" style={{ textAlign: 'center' }} body={(data) => (
-                            data.saldoPendiente > 0 ?
-                                <Button label="Abonar" icon="pi pi-dollar" severity="success" size="small" onClick={() => handleQuickPay(data)} /> :
-                                <i className="pi pi-check-circle text-green-500 text-xl" title="Pagado"></i>
-                        )} />
+                        <Column
+                            header="Cliente"
+                            field="idCliente"
+                            body={(d) => clients.find(c => c.id === d.idCliente)?.nombre || 'Público General'}
+                        />
+                        <Column
+                            field="montoTotal"
+                            header="Total"
+                            body={(d) => `$${d.montoTotal.toFixed(2)}`}
+                            className="text-right"
+                        />
+                        <Column
+                            field="saldoPendiente"
+                            header="Saldo"
+                            className="text-right"
+                            body={(d) => {
+                                const saldo = d.saldoPendiente !== undefined ? d.saldoPendiente : (d.montoTotal - (d.montoPagado || 0));
+                                return (
+                                    <span className={saldo > 0.5 ? 'text-red-500 font-bold' : 'text-green-500 font-bold'}>
+                                        ${saldo.toFixed(2)}
+                                    </span>
+                                );
+                            }}
+                        />
+                        <Column
+                            header="Pagos"
+                            style={{ textAlign: 'center', width: '15%' }}
+                            body={(data) => {
+                                const saldo = data.saldoPendiente !== undefined ? data.saldoPendiente : (data.montoTotal - (data.montoPagado || 0));
+                                return saldo > 0.5 ?
+                                    <Button label="Abonar" icon="pi pi-dollar" severity="success" size="small" onClick={() => handleQuickPay(data)} /> :
+                                    <Tag severity="success" value="Pagado" icon="pi pi-check" />;
+                            }}
+                        />
                     </DataTable>
                 </Dialog>
 

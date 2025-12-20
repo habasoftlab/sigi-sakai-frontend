@@ -52,13 +52,20 @@ const LoginPage = () => {
                     detail: `Iniciando como ${data.rol}...`
                 });
                 setTimeout(() => {
-                    if (data.permisos.includes('VER_DASHBOARD')) {
+                    const permisos = data.permisos || [];
+                    if (permisos.includes('VER_DASHBOARD')) {
                         router.push('/');
                     }
-                    else if (data.permisos.includes('GESTIONAR_COTIZACIONES')) {
+                    else if (permisos.includes('VER_PANEL_DISENO')) {
+                        router.push('/designerlist');
+                    }
+                    else if (permisos.includes('VER_PANEL_TALLER')) {
+                        router.push('/workshoplist');
+                    }
+                    else if (permisos.includes('GESTIONAR_COTIZACIONES')) {
                         router.push('/counter');
                     }
-                    else if (data.permisos.includes('GESTIONAR_ORDENES') || data.permisos.includes('VER_PANEL_TALLER')) {
+                    else if (permisos.includes('GESTIONAR_ORDENES')) {
                         router.push('/listorder');
                     }
                     else {
@@ -85,7 +92,7 @@ const LoginPage = () => {
             handleLogin();
         }
     };
-    
+
     return (
         <div className={containerClassName}>
             <Toast ref={toast} />

@@ -92,4 +92,37 @@ export const OrderService = {
         if (!res.ok) throw new Error("Error cargando catálogo de estatus");
         return await res.json();
     },
+
+    async getOrdenesActivas(page = 0, size = 10) {
+        const params = new URLSearchParams({
+            page: page.toString(),
+            size: size.toString(),
+        });
+        const response = await fetch(`${ORDERS_API}/ordenes/activas?${params.toString()}`);
+        if (!response.ok) throw new Error("Error al obtener órdenes activas");
+        return await response.json();
+    },
+
+    async getCotizacionesYCanceladas(page = 0, size = 10) {
+        const params = new URLSearchParams({
+            page: page.toString(),
+            size: size.toString(),
+        });
+        const response = await fetch(`${ORDERS_API}/ordenes/cotizacion-cancelacion?${params.toString()}`);
+        if (!response.ok) throw new Error("Error al obtener cotizaciones");
+        return await response.json();
+    },
+
+    async getOrdenesPorDisenador(idDisenador: number, page = 0, size = 10) {
+        const params = new URLSearchParams({
+            page: page.toString(),
+            size: size.toString(),
+        });
+        const response = await fetch(`${ORDERS_API}/ordenes/por-disenador/${idDisenador}?${params.toString()}`);
+        
+        if (!response.ok) {
+            throw new Error("Error al obtener órdenes del diseñador");
+        }
+        return await response.json();
+    }
 };

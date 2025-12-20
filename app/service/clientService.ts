@@ -3,7 +3,7 @@ import { Client, ClientRequest } from "@/app/types/clients";
 const API_URL = process.env.NEXT_PUBLIC_USERS_API_URL;
 
 export const ClientService = {
-    
+
     async getAll(): Promise<Client[]> {
         const res = await fetch(`${API_URL}/clientes`);
         if (!res.ok) throw new Error("Error al obtener clientes");
@@ -16,6 +16,14 @@ export const ClientService = {
             email: item.email || '',
             rfc: item.rfc || '',
         }));
+    },
+
+    async getById(id: number): Promise<Client> {
+        const res = await fetch(`${API_URL}/clientes/${id}`);
+        if (!res.ok) {
+            throw new Error("No se pudo obtener el cliente");
+        }
+        return await res.json();
     },
 
     async create(client: ClientRequest) {

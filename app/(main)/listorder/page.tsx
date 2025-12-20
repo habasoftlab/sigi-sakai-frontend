@@ -38,17 +38,21 @@ const ListOrderPage = () => {
                 const [designers, clients, statuses] = await Promise.all([
                     UserService.getDesigners(),
                     ClientService.getAll(),
-                    OrderService.getEstatusOperaciones() // Nuevo endpoint
+                    OrderService.getEstatusOperaciones()
                 ]);
                 const dMap: Record<number, string> = {};
                 designers.forEach((d: any) => { dMap[d.idUsuario || d.id] = d.nombre; });
                 setDesignerMap(dMap);
+
                 const cMap: Record<number, string> = {};
                 clients.forEach((c: any) => { if (c.id) cMap[c.id] = c.nombre; });
                 setClientMap(cMap);
+
                 const sMap: Record<number, string> = {};
                 statuses.forEach((s: any) => { sMap[s.idEstatus] = s.descripcion; });
                 setStatusMap(sMap);
+
+                // Carga inicial de datos
                 await loadOrdersLazy(0, rows, dMap, cMap, sMap);
 
             } catch (error) {
@@ -72,14 +76,17 @@ const ListOrderPage = () => {
     ) => {
         setLoading(true);
         try {
-            const response = await OrderService.getOrdenes(pageIndex, pageSize);
+            const response = await OrderService.getOrdenesActivas(pageIndex, pageSize);
             const listaOrdenes = response.content || response;
-            const totalEnBackend = response.totalElements || 100;
-            const ordenesReales = listaOrdenes.filter((item: any) => item.idEstatusActual > 1);
+            const totalEnBackend = response.totalElements || 0;
+            const ordenesReales = listaOrdenes;
+
             const dMapToUse = currentDMap || designerMap;
             const cMapToUse = currentCMap || clientMap;
             const sMapToUse = currentSMap || statusMap;
+
             const treeData = transformToTree(ordenesReales, dMapToUse, cMapToUse, sMapToUse);
+
             setOrderTree(treeData);
             setTotalRecords(totalEnBackend);
         } catch (error) {

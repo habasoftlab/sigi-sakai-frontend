@@ -12,7 +12,7 @@ import { Toast } from 'primereact/toast';
 // Servicios
 import { OrderService } from '@/app/service/orderService';
 import { UserService } from '@/app/service/userService';
-import { ClientService } from '@/app/service/clientService'; // <--- IMPORTAMOS CLIENT SERVICE
+import { ClientService } from '@/app/service/clientService';
 
 const ListQuotePage = () => {
     const [quoteTree, setQuoteTree] = useState<TreeNode[]>([]);
@@ -25,7 +25,7 @@ const ListQuotePage = () => {
 
     // Mapas para búsqueda rápida { id: "Nombre" }
     const [designerMap, setDesignerMap] = useState<Record<number, string>>({});
-    const [clientMap, setClientMap] = useState<Record<number, string>>({}); // <--- NUEVO MAPA
+    const [clientMap, setClientMap] = useState<Record<number, string>>({});
 
     const toast = useRef<Toast>(null);
 
@@ -47,6 +47,7 @@ const ListQuotePage = () => {
                     if (c.id) cMap[c.id] = c.nombre;
                 });
                 setClientMap(cMap);
+
                 await loadQuotesLazy(0, rows, dMap, cMap);
 
             } catch (error) {
@@ -69,12 +70,14 @@ const ListQuotePage = () => {
     ) => {
         setLoading(true);
         try {
-            const response = await OrderService.getOrdenes(pageIndex, pageSize);
+            const response = await OrderService.getCotizacionesYCanceladas(pageIndex, pageSize);
             const listaOrdenes = response.content || response;
-            const totalEnBackend = response.totalElements || 100;
-            const cotizaciones = listaOrdenes.filter((item: any) => item.idEstatusActual === 1);
+            const totalEnBackend = response.totalElements || 0;
+            const cotizaciones = listaOrdenes;
+
             const dMapToUse = currentDMap || designerMap;
             const cMapToUse = currentCMap || clientMap;
+
             const treeData = transformToTree(cotizaciones, dMapToUse, cMapToUse);
 
             setQuoteTree(treeData);
@@ -120,7 +123,7 @@ const ListQuotePage = () => {
                 key: `group-${index}`,
                 data: {
                     name: designerName,
-                    cliente: `${childrenItems.length} cotizaciones`,
+                    cliente: `${childrenItems.length} registros`,
                     fecha: '',
                     total: totalDesigner,
                     estatus: 'GROUP',
@@ -134,12 +137,12 @@ const ListQuotePage = () => {
                     else if (item.idCliente) {
                         clientLabel = cMap[item.idCliente] || `Cliente #${item.idCliente}`;
                     }
-
+                    const tipoDoc = item.idEstatusActual === 11 ? 'Cancelada' : 'Cotización';
                     return {
                         key: item.idOrden.toString(),
                         data: {
                             idOrden: item.idOrden,
-                            name: `Cotización #${item.idOrden}`,
+                            name: `${tipoDoc} #${item.idOrden}`,
                             cliente: clientLabel,
                             fecha: item.fechaCreacion,
                             total: item.montoTotal,
@@ -153,7 +156,20 @@ const ListQuotePage = () => {
     };
 
     const totalBodyTemplate = (node: TreeNode) => <span className={node.data.isGroup ? "font-bold text-lg" : ""}>${(node.data.total || 0).toFixed(2)}</span>;
-    const statusBodyTemplate = (node: TreeNode) => node.data.isGroup ? null : <Tag severity="warning" value="Cotización" icon="pi pi-file" />;
+
+    const statusBodyTemplate = (node: TreeNode) => {
+        if (node.data.isGroup) return null;
+
+        switch (node.data.estatus) {
+            case 11: // Cancelada
+                return <Tag severity="danger" value="Cancelada" icon="pi pi-times" />;
+            case 1: // Cotización Iniciada
+                return <Tag severity="warning" value="Cotización" icon="pi pi-file" />;
+            default:
+                return <Tag severity="info" value="Registrado" icon="pi pi-info-circle" />;
+        }
+    };
+
     const dateBodyTemplate = (node: TreeNode) => {
         if (node.data.isGroup || !node.data.fecha) return '';
         return new Date(node.data.fecha).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });

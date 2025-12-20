@@ -23,10 +23,13 @@ export interface NuevaOrdenRequest {
     idUsuarioAccion: number;
 }
 
-export type AvanzarEstatusRequest =
-    | { idUsuario: number }
-    | { idUsuario: number; hayInsumos: boolean }
-    | { idUsuario: number; clienteAprobo: boolean };
+export interface AvanzarEstatusRequest {
+    idUsuario: number;
+    hayInsumos?: boolean;
+    clienteAprobo?: boolean;
+    idEstatusDestino?: number;
+    comentarios?: string;
+}
 
 export interface Producto {
     idProducto: number;
