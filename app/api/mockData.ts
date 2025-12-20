@@ -119,12 +119,12 @@ export const allProducts: Product[] = [
 ];
 
 export const regimenFiscalOptions = [
-    { label: '601 - General de Ley Personas Morales', value: '601' },
-    { label: '603 - Personas Morales con Fines no Lucrativos', value: '603' },
-    { label: '605 - Sueldos y Salarios e Ingresos Asimilados a Salarios', value: '605' },
-    { label: '612 - Personas Físicas con Actividades Empresariales y Profesionales', value: '612' },
-    { label: '616 - Sin obligaciones fiscales', value: '616' },
-    { label: '626 - Régimen Simplificado de Confianza', value: '626' }
+    { label: '601 - General de Ley Personas Morales', value: 1 },
+    { label: '612 - Personas Físicas con Actividades Empresariales', value: 2 },
+    { label: '626 - Régimen Simplificado de Confianza', value: 3 },
+    { label: '605 - Sueldos y Salarios', value: 4 },
+    { label: '603 - Personas Morales con Fines no Lucrativos', value: 5 },
+    { label: '616 - Sin obligaciones fiscales', value: 6 }
 ];
 
 export const dummyClients = [
@@ -220,7 +220,8 @@ export const designers = [
 ];
 
 export const cfdiOptions = [
-    { label: 'Gastos en general', value: 'G01' },
-    { label: 'Adquisición de mercancías', value: 'G02' },
-    { label: 'Honorarios profesionales', value: 'G03' }
+    { label: 'G01 - Adquisicion de mercancias', value: '1' },
+    { label: 'G03 - Gastos en general', value: '2' },
+    { label: 'I08 - Otros gastos', value: '3' },
+    { label: 'P01 - Por definir', value: '4' }
 ];

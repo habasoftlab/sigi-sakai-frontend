@@ -1,104 +1,113 @@
 'use client';
-import React, { useState, useRef } from 'react';
-import { classNames } from 'primereact/utils';
+import React, { useState, useRef, useEffect } from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
-import { Dropdown } from 'primereact/dropdown';
-import { Divider } from 'primereact/divider';
 import { FilterMatchMode } from 'primereact/api';
 import Link from 'next/link';
-import { cfdiOptions, dummyClients, regimenFiscalOptions } from '@/app/api/mockData';
+import { ClientService } from "@/app/service/clientService";
+import { CatalogService } from "@/app/service/catalogService";
+import { Client } from "@/app/types/clients";
+import { ClientFormDialog } from "@/app/components/ClientFormDialog";
 
-interface Client {
-    id: string | null;
-    name: string;
-    email: string;
-    phone: string;
-    rfc: string;
-    cfdi: string;
-    regimenFiscal: string; // --- NUEVO CAMPO
-    cp: string;
-}
+const initialClient: Client = {
+    id: null,
+    nombre: '', email: null, telefono: null, rfc: null, razonSocial: null,
+    direccionFiscal: null, idUsoCfdi: null, idRegimenFiscal: null,
+};
+
+interface DropdownOption { label: string; value: number; }
 
 const ListClientsPage = () => {
-    const initializedClients = dummyClients.map(c => ({
-        ...c,
-        regimenFiscal: (c as any).regimenFiscal || ''
-    }));
-
-    const [clients, setClients] = useState<Client[]>(initializedClients);
+    const [clients, setClients] = useState<Client[]>([]);
     const [clientDialog, setClientDialog] = useState(false);
     const [deleteClientDialog, setDeleteClientDialog] = useState(false);
-    const [client, setClient] = useState<Client>({ id: null, name: '', email: '', phone: '', rfc: '', cfdi: '', regimenFiscal: '', cp: '' });
-    const [submitted, setSubmitted] = useState(false);
-
-    const [filters, setFilters] = useState({
-        global: { value: null, matchMode: FilterMatchMode.CONTAINS }
-    });
+    const [client, setClient] = useState<Client>(initialClient);
+    const [loading, setLoading] = useState(false);
     const [globalFilterValue, setGlobalFilterValue] = useState('');
+    const [filters, setFilters] = useState({ global: { value: null, matchMode: FilterMatchMode.CONTAINS } });
+    const [regimenOptions, setRegimenOptions] = useState<DropdownOption[]>([]);
+    const [cfdiOptions, setCfdiOptions] = useState<DropdownOption[]>([]);
 
     const toast = useRef<Toast>(null);
 
+    useEffect(() => {
+        loadClients();
+        loadCatalogs();
+    }, []);
+
+    const loadClients = async () => {
+        setLoading(true);
+        try {
+            const data = await ClientService.getAll();
+            const normalized = data.map((c: any) => ({
+                ...c,
+                id: c.idCliente || c.id || null,
+                nombre: c.nombre ?? '',
+                razonSocial: c.razonSocial ?? c.nombre ?? '',
+            }));
+            setClients(normalized);
+        } catch (err) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar los clientes' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadCatalogs = async () => {
+        try {
+            const [regimenesData, usosData] = await Promise.all([
+                CatalogService.getRegimenesFiscales(),
+                CatalogService.getUsosCfdi()
+            ]);
+            setRegimenOptions(regimenesData.map(r => ({ label: `${r.clave} - ${r.descripcion}`, value: r.idRegimen })));
+            setCfdiOptions(usosData.map(u => ({ label: `${u.clave} - ${u.descripcion}`, value: u.idUsoCfdi })));
+        } catch (error) { console.error("Error cargando catálogos", error); }
+    };
+
+    // Funciones para abrir Dialog
     const openNew = () => {
-        setClient({ id: null, name: '', email: '', phone: '', rfc: '', cfdi: '', regimenFiscal: '', cp: '' });
-        setSubmitted(false);
+        setClient({ ...initialClient }); // Limpia el estado para nuevo
+        setClientDialog(true);
+    };
+
+    const editClient = (c: Client) => {
+        setClient({ ...c }); // Carga el cliente a editar en el estado
         setClientDialog(true);
     };
 
     const hideDialog = () => {
-        setSubmitted(false);
         setClientDialog(false);
     };
 
-    const hideDeleteClientDialog = () => {
-        setDeleteClientDialog(false);
+    const handleClientSaved = () => {
+        loadClients(); // Recargar tabla
+        setClientDialog(false); // Cerrar modal
     };
 
-    const saveClient = () => {
-        setSubmitted(true);
-
-        if (client.name.trim()) {
-            let _clients = [...clients];
-            let _client = { ...client };
-
-            if (client.id) {
-                const index = findIndexById(client.id);
-                _clients[index] = _client;
-                toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Cliente actualizado', life: 3000 });
-            } else {
-                _client.id = createId();
-                _clients.push(_client);
-                toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Cliente creado', life: 3000 });
-            }
-
-            setClients(_clients);
-            setClientDialog(false);
-            setClient({ id: null, name: '', email: '', phone: '', rfc: '', cfdi: '', regimenFiscal: '', cp: '' });
-        }
-    };
-
-    const editClient = (client: Client) => {
-        setClient({ ...client });
-        setClientDialog(true);
-    };
-
-    const confirmDeleteClient = (client: Client) => {
-        setClient(client);
+    // Funciones para Borrar
+    const confirmDeleteClient = (c: Client) => {
+        setClient(c);
         setDeleteClientDialog(true);
     };
 
-    const deleteClient = () => {
-        let _clients = clients.filter((val) => val.id !== client.id);
-        setClients(_clients);
-        setDeleteClientDialog(false);
-        setClient({ id: null, name: '', email: '', phone: '', rfc: '', cfdi: '', regimenFiscal: '', cp: '' });
-        toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Cliente eliminado', life: 3000 });
+    const deleteClient = async () => {
+        if (!client.id) return;
+        try {
+            await ClientService.delete(client.id);
+            setClients(clients.filter((val) => val.id !== client.id));
+            setDeleteClientDialog(false);
+            setClient({ ...initialClient });
+            toast.current?.show({ severity: 'success', summary: 'Eliminado', detail: 'Cliente eliminado' });
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo eliminar el cliente' });
+        }
     };
 
+    // Helpers UI
     const onGlobalFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         let _filters = { ...filters };
@@ -108,39 +117,14 @@ const ListClientsPage = () => {
         setGlobalFilterValue(value);
     };
 
-    const findIndexById = (id: string) => {
-        let index = -1;
-        for (let i = 0; i < clients.length; i++) {
-            if (clients[i].id === id) {
-                index = i;
-                break;
-            }
-        }
-        return index;
-    };
-
-    const createId = () => {
-        return 'C' + Math.floor(Math.random() * 10000).toString();
-    };
-
-    const onInputChange = (e: any, name: string) => {
-        const val = (e.target && e.target.value) || e.value || '';
-        let _client = { ...client };
-        // @ts-ignore
-        _client[name] = val;
-        setClient(_client);
-    };
+    const getRegimenLabel = (id: number | null) => regimenOptions.find(op => op.value === id)?.label || '';
+    const getCfdiLabel = (id: number | null) => cfdiOptions.find(op => op.value === id)?.label || '';
 
     const header = (
         <div className="flex flex-column md:flex-row md:align-items-center justify-content-between gap-2">
             <span className="p-input-icon-left w-full md:w-auto">
                 <i className="pi pi-search" />
-                <InputText
-                    value={globalFilterValue}
-                    onChange={onGlobalFilterChange}
-                    placeholder="Buscar cliente..."
-                    className="w-full md:w-auto"
-                />
+                <InputText value={globalFilterValue} onChange={onGlobalFilterChange} placeholder="Buscar cliente..." className="w-full md:w-auto" />
             </span>
             <div className="flex gap-2">
                 <Button label="Agregar cliente" icon="pi pi-plus" onClick={openNew} />
@@ -148,27 +132,18 @@ const ListClientsPage = () => {
         </div>
     );
 
-    const actionBodyTemplate = (rowData: Client) => {
-        return (
-            <div className="flex gap-2">
-                <Button icon="pi pi-pencil" rounded text severity="info" onClick={() => editClient(rowData)} />
-                <Button icon="pi pi-trash" rounded text severity="danger" onClick={() => confirmDeleteClient(rowData)} />
-            </div>
-        );
-    };
-
-    const deleteClientDialogFooter = (
-        <React.Fragment>
-            <Button label="No" icon="pi pi-times" text onClick={hideDeleteClientDialog} />
-            <Button label="Sí" icon="pi pi-check" text severity="danger" onClick={deleteClient} />
-        </React.Fragment>
+    const actionBodyTemplate = (rowData: Client) => (
+        <div className="flex gap-2 justify-content-center">
+            <Button icon="pi pi-pencil" rounded text severity="info" onClick={() => editClient(rowData)} />
+            <Button icon="pi pi-trash" rounded text severity="danger" onClick={() => confirmDeleteClient(rowData)} />
+        </div>
     );
 
-    const clientDialogFooter = (
-        <div className="pt-2">
-            <Button label="Cancelar" icon="pi pi-times" text onClick={hideDialog} />
-            <Button label="Guardar" icon="pi pi-check" text onClick={saveClient} />
-        </div>
+    const deleteClientDialogFooter = (
+        <>
+            <Button label="No" icon="pi pi-times" text onClick={() => setDeleteClientDialog(false)} />
+            <Button label="Sí" icon="pi pi-check" text severity="danger" onClick={deleteClient} />
+        </>
     );
 
     return (
@@ -187,118 +162,37 @@ const ListClientsPage = () => {
 
             <DataTable
                 value={clients}
-                paginator
-                rows={10}
+                paginator rows={10}
                 header={header}
                 filters={filters}
-                globalFilterFields={['name', 'email', 'phone', 'rfc', 'cfdi', 'regimenFiscal', 'cp']}
+                globalFilterFields={['nombre', 'email', 'telefono', 'rfc', 'direccionFiscal']}
                 emptyMessage="No se encontraron clientes."
                 responsiveLayout="scroll"
                 stripedRows
+                loading={loading}
+                dataKey="id"
             >
-                <Column field="name" header="Nombre" sortable style={{ minWidth: '12rem' }}></Column>
-                <Column field="email" header="Correo" sortable style={{ minWidth: '12rem' }}></Column>
-                <Column field="phone" header="Teléfono" sortable style={{ minWidth: '10rem' }}></Column>
-                <Column field="rfc" header="R.F.C." sortable style={{ minWidth: '10rem' }}></Column>
-                <Column field="regimenFiscal" header="Régimen" sortable style={{ minWidth: '12rem' }}></Column>
-                <Column field="cfdi" header="C.F.D.I." sortable style={{ minWidth: '8rem' }}></Column>
-                <Column field="cp" header="C.P." sortable style={{ minWidth: '6rem' }}></Column>
-                <Column body={actionBodyTemplate} exportable={false} style={{ minWidth: '8rem' }}></Column>
+                <Column field="nombre" header="Nombre" sortable style={{ minWidth: '12rem' }} />
+                <Column field="email" header="Correo" sortable style={{ minWidth: '12rem' }} />
+                <Column field="telefono" header="Teléfono" sortable style={{ minWidth: '10rem' }} />
+                <Column field="rfc" header="R.F.C." sortable style={{ minWidth: '10rem' }} />
+                <Column body={(row: Client) => getRegimenLabel(row.idRegimenFiscal)} header="Régimen Fiscal" sortable style={{ minWidth: '12rem' }} />
+                <Column body={(row: Client) => getCfdiLabel(row.idUsoCfdi)} header="Uso del C.F.D.I." sortable style={{ minWidth: '8rem' }} />
+                <Column field="direccionFiscal" header="Dirección Fiscal" sortable style={{ minWidth: '15rem' }} />
+                <Column body={actionBodyTemplate} exportable={false} style={{ minWidth: '8rem', textAlign: 'center' }} />
             </DataTable>
 
-            <Dialog
+            <ClientFormDialog
                 visible={clientDialog}
-                style={{ width: '50vw', minWidth: '500px' }}
-                header="Detalles del Cliente"
-                modal
-                className="p-fluid"
-                footer={clientDialogFooter}
                 onHide={hideDialog}
-            >
-                <div className="p-fluid formgrid grid pt-2">
-                    <div className="field col-12 mb-2">
-                        <label htmlFor="name" className="font-bold block mb-1">Nombre / Razón Social*</label>
-                        <InputText
-                            id="name"
-                            value={client.name}
-                            onChange={(e) => onInputChange(e, 'name')}
-                            required
-                            autoFocus
-                            className={classNames({ 'p-invalid': submitted && !client.name })}
-                        />
-                        {submitted && !client.name && <small className="p-error block">El nombre es obligatorio.</small>}
-                    </div>
-                    <div className="field col-12 md:col-6 mb-2">
-                        <label htmlFor="email" className="font-bold block mb-1">Correo Electrónico</label>
-                        <InputText
-                            id="email"
-                            value={client.email}
-                            onChange={(e) => onInputChange(e, 'email')}
-                        />
-                    </div>
-                    <div className="field col-12 md:col-6 mb-2">
-                        <label htmlFor="phone" className="font-bold block mb-1">Teléfono</label>
-                        <InputText
-                            id="phone"
-                            value={client.phone}
-                            onChange={(e) => onInputChange(e, 'phone')}
-                        />
-                    </div>
-                    <div className="col-12">
-                        <Divider align="left" className="my-2">
-                            <span className="p-tag p-tag-rounded text-xs">Datos Fiscales</span>
-                        </Divider>
-                    </div>
-                    <div className="field col-12 md:col-4 mb-2">
-                        <label htmlFor="rfc" className="font-bold block mb-1">R.F.C.</label>
-                        <InputText
-                            id="rfc"
-                            value={client.rfc}
-                            onChange={(e) => onInputChange(e, 'rfc')}
-                        />
-                    </div>
-                    <div className="field col-12 md:col-8 mb-2">
-                        <label htmlFor="regimenFiscal" className="font-bold block mb-1">Régimen Fiscal</label>
-                        <Dropdown
-                            id="regimenFiscal"
-                            value={client.regimenFiscal}
-                            options={regimenFiscalOptions}
-                            onChange={(e) => onInputChange(e, 'regimenFiscal')}
-                            placeholder="Seleccione régimen"
-                            className="w-full"
-                            filter
-                        />
-                    </div>
-                    <div className="field col-12 md:col-8 mb-0">
-                        <label htmlFor="cfdi" className="font-bold block mb-1">Uso del C.F.D.I.</label>
-                        <Dropdown
-                            id="cfdi"
-                            value={client.cfdi}
-                            options={cfdiOptions}
-                            onChange={(e) => onInputChange(e, 'cfdi')}
-                            placeholder="Seleccione uso"
-                            className="w-full"
-                        />
-                    </div>
-                    <div className="field col-12 md:col-4 mb-0">
-                        <label htmlFor="cp" className="font-bold block mb-1">Código Postal</label>
-                        <InputText
-                            id="cp"
-                            value={client.cp}
-                            onChange={(e) => onInputChange(e, 'cp')}
-                        />
-                    </div>
-                </div>
-            </Dialog>
+                onSuccess={handleClientSaved}
+                clientToEdit={client.id ? client : null}
+            />
 
-            <Dialog visible={deleteClientDialog} style={{ width: '32rem' }} breakpoints={{ '960px': '75vw', '641px': '90vw' }} header="Confirmar" modal footer={deleteClientDialogFooter} onHide={hideDeleteClientDialog}>
+            <Dialog visible={deleteClientDialog} style={{ width: '32rem' }} breakpoints={{ '960px': '75vw', '641px': '90vw' }} header="Confirmar" modal footer={deleteClientDialogFooter} onHide={() => setDeleteClientDialog(false)}>
                 <div className="confirmation-content">
                     <i className="pi pi-exclamation-triangle mr-3 text-yellow-500" style={{ fontSize: '2rem' }} />
-                    {client && (
-                        <span>
-                            ¿Estás seguro de que quieres eliminar a <b>{client.name}</b>?
-                        </span>
-                    )}
+                    {client && (<span>¿Estás seguro de que quieres eliminar a <b>{client.nombre}</b>?</span>)}
                 </div>
             </Dialog>
         </div>
