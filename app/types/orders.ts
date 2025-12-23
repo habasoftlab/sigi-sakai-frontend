@@ -41,6 +41,7 @@ export interface Producto {
     unidadVenta: string;
     tirajeMinimo: number;
     volumenDescuentoCantidad?: number | null;
+    cantidadPaquete: number;
 }
 
 export interface CondicionPago {

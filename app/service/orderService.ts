@@ -43,6 +43,17 @@ export const OrderService = {
         return await res.json();
     },
 
+    async getArchivoUrlVerificado(filename: string | null): Promise<string | null> {
+        if (!filename || filename === 'Pendiente') return null;
+        const url = `${ORDERS_API}/uploads/files/${filename}`;
+        try {
+            const res = await fetch(url, { method: 'HEAD' }); // Solo pide encabezados, es rápido
+            return res.ok ? url : null;
+        } catch (e) {
+            return null;
+        }
+    },
+
     async registrarPago(idOrden: number, pago: { monto: number; referencia: string; idUsuario: number }) {
         const res = await fetch(`${ORDERS_API}/ordenes/${idOrden}/pagos`, {
             method: 'POST',
@@ -119,7 +130,7 @@ export const OrderService = {
             size: size.toString(),
         });
         const response = await fetch(`${ORDERS_API}/ordenes/por-disenador/${idDisenador}?${params.toString()}`);
-        
+
         if (!response.ok) {
             throw new Error("Error al obtener órdenes del diseñador");
         }

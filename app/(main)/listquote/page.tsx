@@ -72,14 +72,13 @@ const ListQuotePage = () => {
         try {
             const response = await OrderService.getCotizacionesYCanceladas(pageIndex, pageSize);
             const listaOrdenes = response.content || response;
-            const totalEnBackend = response.totalElements || 0;
+            const totalEnBackend = response.page?.totalElements
+                || response.totalElements
+                || listaOrdenes.length;
             const cotizaciones = listaOrdenes;
-
             const dMapToUse = currentDMap || designerMap;
             const cMapToUse = currentCMap || clientMap;
-
             const treeData = transformToTree(cotizaciones, dMapToUse, cMapToUse);
-
             setQuoteTree(treeData);
             setTotalRecords(totalEnBackend);
         } catch (error) {
