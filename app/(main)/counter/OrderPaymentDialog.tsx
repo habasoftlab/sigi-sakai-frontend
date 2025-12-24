@@ -15,6 +15,7 @@ interface OrderPaymentDialogProps {
     items: any[];
     total: number;
     paidAmount: number;
+    currentConditionId?: number;
     paymentConditions: any[];
     onConfirmPayment: (paymentData: PaymentData) => void;
     isSubmitting: boolean;
@@ -31,6 +32,7 @@ export interface PaymentData {
 export const OrderPaymentDialog = (props: OrderPaymentDialogProps) => {
     const {
         visible, onHide, orderId, items, total, paidAmount,
+        currentConditionId,
         paymentConditions, onConfirmPayment, isSubmitting
     } = props;
 
@@ -41,19 +43,40 @@ export const OrderPaymentDialog = (props: OrderPaymentDialogProps) => {
 
     useEffect(() => {
         if (visible) {
-            setPaymentType('unico');
-            const saldo = total - paidAmount;
-            setAdvanceAmount(saldo > 0 ? Number(saldo.toFixed(2)) : 0);
             setOrderNotes('');
             setSelectedFile(null);
+            const saldo = total - paidAmount;
+            let initialType: 'unico' | 'anticipo' | 'plazos' = 'unico';
+            if (currentConditionId === 2) {
+                initialType = 'anticipo';
+            } else if (currentConditionId === 3 || currentConditionId === 4) {
+                initialType = 'plazos';
+            } else {
+                initialType = 'unico';
+            }
+            setPaymentType(initialType);
+            let montoSugerido = 0;
+            if (initialType === 'unico') {
+                montoSugerido = saldo;
+            } else if (initialType === 'anticipo') {
+                if (paidAmount >= (total * 0.19)) {
+                    montoSugerido = saldo;
+                } else {
+                    montoSugerido = total * 0.50;
+                }
+            } else if (initialType === 'plazos') {
+                const divisor = (currentConditionId === 3) || (total >= 3000) ? 3 : 2;
+                const letra = total / divisor;
+                montoSugerido = Math.min(letra, saldo);
+            }
+            setAdvanceAmount(Number(Math.max(0, montoSugerido).toFixed(2)));
         }
-    }, [visible, total, paidAmount]);
+    }, [visible, total, paidAmount, currentConditionId]);
 
     const handleQuickSet = (type: 'unico' | 'anticipo' | 'plazos') => {
         setPaymentType(type);
         const saldo = total - paidAmount;
         let monto = 0;
-
         if (type === 'unico') {
             monto = saldo;
         } else if (type === 'anticipo') {
@@ -67,7 +90,7 @@ export const OrderPaymentDialog = (props: OrderPaymentDialogProps) => {
     };
 
     const handleConfirmClick = () => {
-        let conditionId = 1; // Default
+        let conditionId = 1;
         if (paymentType === 'unico') {
             conditionId = paymentConditions.find(c => c.numeroPlazos === 1)?.idCondicion || 1;
         } else if (paymentType === 'anticipo') {

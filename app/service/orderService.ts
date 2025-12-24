@@ -1,6 +1,7 @@
 import { NuevaOrdenRequest, AvanzarEstatusRequest } from '@/app/types/orders';
 
 const ORDERS_API = process.env.NEXT_PUBLIC_ORDERS_API_URL;
+const IMAGE_API = process.env.NEXT_PUBLIC_IMAGE_API_URL;
 
 export const OrderService = {
 
@@ -38,20 +39,17 @@ export const OrderService = {
             method: 'POST',
             body: formData
         });
-
-        if (!res.ok) throw new Error('Error al subir el archivo');
+        if (!res.ok) {
+            throw new Error('Error al subir el archivo');
+        }
         return await res.json();
     },
 
     async getArchivoUrlVerificado(filename: string | null): Promise<string | null> {
-        if (!filename || filename === 'Pendiente') return null;
-        const url = `${ORDERS_API}/uploads/files/${filename}`;
-        try {
-            const res = await fetch(url, { method: 'HEAD' }); // Solo pide encabezados, es rápido
-            return res.ok ? url : null;
-        } catch (e) {
+        if (!filename || filename === 'Pendiente' || filename.trim() === '') {
             return null;
         }
+        return `${IMAGE_API}/uploads/${filename}?t=${Date.now()}`;
     },
 
     async registrarPago(idOrden: number, pago: { monto: number; referencia: string; idUsuario: number }) {

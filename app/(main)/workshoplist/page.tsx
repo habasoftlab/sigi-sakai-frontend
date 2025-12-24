@@ -1,61 +1,89 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
 import { Card } from 'primereact/card';
+import { Toast } from 'primereact/toast';
 import Link from 'next/link';
-// Importar los datos desde el archivo centralizado
-import { dummyOrders } from '@/app/api/mockData';
+
+// Servicios
+import { OrderService } from '@/app/service/orderService';
+import { ClientService } from '@/app/service/clientService';
 
 type WorkshopStatus = 'pending' | 'confirmed' | 'delayed';
 
 interface ExtendedOrder {
-    id: string;
-    total: number;
-    cliente: string;
-    estatus: string;
-    imageUrl?: string | null;
+    idOrden: number;
+    montoTotal: number;
+    clienteNombre: string;
+    idCliente: number;
+    idEstatusActual: number;
+    rutaArchivo?: string | null;
+    insumosVerificados: boolean;
+    fechaEntregaFormal?: string;
     workshopStatus: WorkshopStatus;
+    canPrint: boolean;
 }
 
-const WorkshopPage = () => {
+const WorkshopListPage = () => {
     const [orders, setOrders] = useState<ExtendedOrder[]>([]);
+    const [loading, setLoading] = useState(true);
+    const toast = useRef<Toast>(null);
 
     useEffect(() => {
-        const enrichedOrders = dummyOrders.map((order, index) => {
-            let status: WorkshopStatus = 'pending';
-            // Simulamos algunos estados iniciales variados
-            if (index % 3 === 0) status = 'confirmed';
-            else if (index % 3 === 1) status = 'delayed';
-
-            return { ...order, workshopStatus: status };
-        });
-        setOrders(enrichedOrders);
+        loadOrders();
     }, []);
+
+    const loadOrders = async () => {
+        setLoading(true);
+        try {
+            const [ordersResponse, clientsData] = await Promise.all([
+                OrderService.getOrdenesActivas(0, 100),
+                ClientService.getAll()
+            ]);
+            const rawOrders = ordersResponse.content || ordersResponse || [];
+            const clientMap = new Map<number, string>();
+            clientsData.forEach((client) => {
+                if (client.id) {
+                    clientMap.set(client.id, client.nombre);
+                }
+            });
+            const processedOrders = rawOrders.map((order: any) => {
+                const resolvedClientName = clientMap.get(order.idCliente) || `Cliente #${order.idCliente}`;
+                let status: WorkshopStatus = 'pending';
+                if (order.insumosVerificados) {
+                    status = 'confirmed';
+                } else if (order.idEstatusActual === 6) {
+                    status = 'delayed';
+                } else {
+                    status = 'pending';
+                }
+                const designReady = order.rutaArchivo && order.rutaArchivo !== 'Pendiente';
+                const isStatusReadyForPrint = order.idEstatusActual >= 5;
+                const canPrint = designReady && order.insumosVerificados && isStatusReadyForPrint;
+
+                return {
+                    ...order,
+                    clienteNombre: resolvedClientName,
+                    workshopStatus: status,
+                    canPrint: canPrint
+                };
+            });
+            setOrders(processedOrders);
+        } catch (error) {
+            console.error("Error cargando datos de taller", error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar la lista de trabajo.' });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const formatCurrency = (value: number) => {
         return value.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
     };
 
-    // --- FUNCIÓN PARA SIMULAR CAMBIO DE ESTADO (DEMO) ---
-    const toggleWorkshopStatus = (id: string) => {
-        const updatedOrders = orders.map(order => {
-            if (order.id === id) {
-                // Ciclo: Pending -> Confirmed -> Delayed -> Pending
-                let newStatus: WorkshopStatus = 'pending';
-                if (order.workshopStatus === 'pending') newStatus = 'confirmed';
-                else if (order.workshopStatus === 'confirmed') newStatus = 'delayed';
-
-                return { ...order, workshopStatus: newStatus };
-            }
-            return order;
-        });
-        setOrders(updatedOrders);
-    };
-
-    // --- LÓGICA DE ESTADOS DE INSUMOS (Solo Iconos) ---
     const suppliesBodyTemplate = (rowData: ExtendedOrder) => {
         let icon = '';
         let colorClass = '';
@@ -63,75 +91,56 @@ const WorkshopPage = () => {
 
         switch (rowData.workshopStatus) {
             case 'confirmed':
-                icon = 'pi pi-check-square'; // Cajita verde marcada
+                icon = 'pi pi-check-square'; 
                 colorClass = 'text-green-500';
                 tooltip = 'Insumos listos';
                 break;
             case 'delayed':
-                icon = 'pi pi-calendar-times'; // Calendario rojo
+                icon = 'pi pi-calendar-times';
                 colorClass = 'text-red-500';
                 tooltip = 'Solicitud de insumos demorada';
                 break;
             case 'pending':
             default:
-                icon = 'pi pi-box'; // Cajita abierta azul
+                icon = 'pi pi-box';
                 colorClass = 'text-blue-500';
-                tooltip = 'En espera de revisión';
+                tooltip = 'Pendiente de revisión';
                 break;
         }
 
         return (
-            <div className="flex align-items-center justify-content-center gap-2">
-                {/* Enlace al detalle de insumos */}
-                <Link href={`/workshopsupplies?id=${rowData.id}`} passHref legacyBehavior>
+            <div className="flex align-items-center justify-content-center">
+                <Link href={`/workshopsupplies?id=${rowData.idOrden}`} passHref legacyBehavior>
                     <a className="p-button p-component p-button-text p-button-rounded p-button-plain no-underline hover:surface-100 border-circle w-3rem h-3rem flex align-items-center justify-content-center transition-colors transition-duration-200" title={tooltip}>
                         <i className={`${icon} ${colorClass}`} style={{ fontSize: '1.5rem' }}></i>
                     </a>
                 </Link>
-
-                {/* Botón auxiliar para SIMULAR cambio de estado (útil para demos) */}
-                <Button
-                    icon="pi pi-sync"
-                    text
-                    rounded
-                    className="p-button-secondary p-button-sm w-2rem h-2rem"
-                    tooltip="Simular cambio de estado"
-                    onClick={() => toggleWorkshopStatus(rowData.id)}
-                />
             </div>
         );
     };
 
-    // --- LÓGICA DE VER DISEÑO (Lupa Clara/Oscura) ---
     const printDesignBodyTemplate = (rowData: ExtendedOrder) => {
-        const designReady = !!rowData.imageUrl;
-        const suppliesReady = rowData.workshopStatus === 'confirmed';
-
-        // Regla: Solo habilitado si hay diseño Y los insumos ya fueron marcados como listos
-        const canPrint = designReady && suppliesReady;
-
+        const canPrint = rowData.canPrint;
         let tooltip = "Listo para imprimir";
-        // Lupa Oscura (Azul fuerte) vs Lupa Clara (Gris transparente)
-        let iconClass = canPrint ? "text-yellow-500" : "text-800 opacity-30";
+        let iconClass = canPrint ? "text-yellow-500" : "text-400 opacity-30";
 
         if (!canPrint) {
-            if (!designReady && !suppliesReady) tooltip = "Falta diseño e insumos";
-            else if (!designReady) tooltip = "Diseño no listo";
-            else if (!suppliesReady) tooltip = "Faltan insumos (Click en la caja para revisar)";
+            if (!rowData.rutaArchivo || rowData.rutaArchivo === 'Pendiente') tooltip = "Falta archivo de diseño";
+            else if (!rowData.insumosVerificados) tooltip = "Faltan insumos (Revisar caja)";
+            else tooltip = "Orden no está en estatus de impresión";
         }
 
         return (
             <div className="flex justify-content-center">
-                {/* Corrección: Usamos Link si es posible, o Button deshabilitado si no */}
                 {canPrint ? (
-                    <Link href={`/workshopprint?id=${rowData.id}`} passHref legacyBehavior>
+                    <Link href={`/workshopprint?id=${rowData.idOrden}`} passHref legacyBehavior>
                         <a className="p-button p-component p-button-rounded p-button-text hover:surface-100 border-circle w-3rem h-3rem flex align-items-center justify-content-center transition-colors transition-duration-200" title={tooltip}>
-                            <i className={`pi pi-search ${iconClass}`} style={{ fontSize: '1.5rem' }}></i>
+                            <i className={`pi pi-print ${iconClass}`} style={{ fontSize: '1.5rem' }}></i>
                         </a>
                     </Link>
                 ) : (
                     <Button
-                        icon={`pi pi-search ${iconClass}`}
+                        icon={`pi pi-print ${iconClass}`}
                         className="p-button-rounded p-button-text hover:surface-100 border-circle w-3rem h-3rem"
                         tooltip={tooltip}
                         tooltipOptions={{ position: 'top' }}
@@ -145,67 +154,69 @@ const WorkshopPage = () => {
 
     return (
         <div className="grid">
+            <Toast ref={toast} />
             <div className="col-12">
-                {/* Card SIN color de fondo forzado (bg-orange-50 eliminado) */}
                 <Card className="mb-4 border-round-xl shadow-1">
                     <div className="flex align-items-center justify-content-between mb-3">
                         <div>
-                            <h1 className="m-0 text-3xl font-bold text-900">Bienvenido! Jefe de Taller</h1>
+                            <h1 className="m-0 text-3xl font-bold text-900">Bienvenido, Jefe de Taller</h1>
                             <p className="mt-2 text-600 text-lg">
-                                Recuerda informar a la contadora la falta de insumos a la brevedad.
+                                Gestiona la producción. Revisa insumos antes de iniciar impresión.
                             </p>
                         </div>
-                        {/* Mantenemos el icono con fondo sutil, suele verse bien en dark mode, o se puede quitar el bg */}
                         <div className="hidden md:flex align-items-center justify-content-center surface-100 border-round" style={{ width: '4rem', height: '4rem' }}>
                             <i className="pi pi-cog text-orange-500 text-3xl" />
                         </div>
                     </div>
 
-                    {/* Leyenda de Estados (Tags reimplementados) */}
                     <div className="flex flex-wrap gap-3 mt-3">
                         <span className="px-3 py-1 border-round surface-100 bg-blue-100 text-blue-700 font-bold text-sm flex align-items-center">
-                            <i className="pi pi-box mr-2 text-blue-500"></i>En espera de revisión
+                            <i className="pi pi-box mr-2 text-blue-500"></i>Por Revisar
                         </span>
                         <span className="px-3 py-1 border-round surface-100 bg-green-100 text-green-700 font-bold text-sm flex align-items-center">
-                            <i className="pi pi-check-square mr-2 text-green-500"></i>Insumos confirmados
+                            <i className="pi pi-check-square mr-2 text-green-500"></i>Insumos OK
                         </span>
                         <span className="px-3 py-1 border-round surface-100 bg-red-100 text-red-700 font-bold text-sm flex align-items-center">
-                            <i className="pi pi-calendar-times mr-2 text-red-500"></i>Insumos demorados
+                            <i className="pi pi-calendar-times mr-2 text-red-500"></i>Faltantes
                         </span>
                         <span className="px-3 py-1 border-round surface-100 bg-yellow-100 text-yellow-700 font-bold text-sm flex align-items-center">
-                            <i className="pi pi-search mr-2 text-yellow-600"></i>Diseño listo e insumos confirmados
-                        </span>
-                        <span className="px-3 py-1 border-round surface-100 text-color-secondary font-bold text-sm flex align-items-center">
-                            <i className="pi pi-search mr-2 text-400"></i>En espera de diseño
+                            <i className="pi pi-print mr-2 text-yellow-600"></i>Listo para Imprimir
                         </span>
                     </div>
                 </Card>
 
-                <div className="card">
+                <div className="card shadow-2">
                     <DataTable
                         value={orders}
                         paginator
                         rows={10}
+                        loading={loading}
                         responsiveLayout="scroll"
                         emptyMessage="No hay órdenes pendientes en taller."
-                        tableStyle={{ minWidth: '60rem' }}
+                        className="p-datatable-sm"
+                        rowClassName={(data) => data.workshopStatus === 'delayed' ? 'bg-red-50' : ''}
                     >
-                        <Column field="id" header="Clave" sortable style={{ width: '20%' }} className="font-bold" />
-                        <Column field="total" header="Precio" body={(data) => formatCurrency(data.total)} sortable style={{ width: '15%' }} />
-                        <Column field="cliente" header="Cliente" sortable style={{ width: '25%' }} />
+                        <Column field="idOrden" header="Folio" sortable style={{ width: '10%' }} className="font-bold" />
+                        <Column 
+                            field="fechaEntregaFormal" 
+                            header="Entrega" 
+                            body={(d) => d.fechaEntregaFormal ? new Date(d.fechaEntregaFormal).toLocaleDateString() : 'Pendiente'}
+                            sortable 
+                            style={{ width: '15%' }} 
+                        />
+                        <Column field="clienteNombre" header="Cliente" sortable style={{ width: '35%' }} />
+                        <Column field="montoTotal" header="Valor" body={(data) => formatCurrency(data.montoTotal)} sortable style={{ width: '15%' }} />
 
-                        {/* Columna de Insumos (Icono + Botón de Demo) */}
                         <Column
-                            header="Revisión de insumos"
+                            header="Insumos"
                             body={suppliesBodyTemplate}
-                            style={{ width: '20%', textAlign: 'center' }}
+                            style={{ width: '12%', textAlign: 'center' }}
                         />
 
-                        {/* Columna de Diseño (Solo Lupa) */}
                         <Column
-                            header="Ver diseño de impresión"
+                            header="Impresión"
                             body={printDesignBodyTemplate}
-                            style={{ width: '20%', textAlign: 'center' }}
+                            style={{ width: '13%', textAlign: 'center' }}
                         />
                     </DataTable>
                 </div>
@@ -214,4 +225,4 @@ const WorkshopPage = () => {
     );
 };
 
-export default WorkshopPage;
+export default WorkshopListPage;

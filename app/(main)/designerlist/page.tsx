@@ -76,10 +76,8 @@ const DesignerListPage = () => {
                 if (!aEsRechazado && bEsRechazado) return 1;
                 const fechaA = new Date(a.fechaEntregaFormal || a.fechaCreacion).getTime();
                 const fechaB = new Date(b.fechaEntregaFormal || b.fechaCreacion).getTime();
-
                 return fechaA - fechaB;
             });
-
             setOrders(listaObtenida);
             const total = (typeof response.totalElements === 'number')
                 ? response.totalElements

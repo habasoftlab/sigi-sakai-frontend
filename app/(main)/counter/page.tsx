@@ -77,6 +77,7 @@ const Counter = () => {
     // LÓGICA DE PAGOS (Para Modal Orden)
     const [paymentType, setPaymentType] = useState<'unico' | 'anticipo' | 'plazos'>('unico');
     const [advanceAmount, setAdvanceAmount] = useState<number>(0);
+    const [activeOrderCondition, setActiveOrderCondition] = useState<number>(1);
     // Filtros y Toast
     const toast = useRef<Toast>(null);
     // Calculado
@@ -429,6 +430,7 @@ const Counter = () => {
         setOrderNotes('');
         setActiveOrderStatus(quoteRow.idEstatusActual);
         setActiveOrderPaid(quoteRow.montoPagado || 0);
+        setActiveOrderCondition(quoteRow.idCondicionPago || 1);
         try {
             const fullOrderData = await OrderService.getOrdenById(quoteRow.idOrden);
             if (fullOrderData.detalles && Array.isArray(fullOrderData.detalles)) {
@@ -471,6 +473,7 @@ const Counter = () => {
         setShowOrderSummary(true);
         setActiveOrderStatus(rowData.idEstatusActual);
         setActiveOrderPaid(rowData.montoPagado || 0);
+        setActiveOrderCondition(rowData.idCondicionPago || 1);
     };
 
     type TipoPago = 'unico' | 'anticipo' | 'plazos';
@@ -635,6 +638,7 @@ const Counter = () => {
                     paymentConditions={paymentConditions}
                     isSubmitting={isSubmitting}
                     onConfirmPayment={handleProcessPayment}
+                    currentConditionId={activeOrderCondition}
                 />
 
                 {/* MODAL: SELECCION DE CLIENTE*/}

@@ -12,23 +12,29 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import Link from 'next/link';
 import { Tag } from 'primereact/tag';
+
 import { OrderService } from '@/app/service/orderService';
 import { ClientService } from '@/app/service/clientService';
 import { CatalogService } from '@/app/service/catalogService';
-
 
 const DesignerOrderDetailPage = () => {
     const searchParams = useSearchParams();
     const orderId = searchParams.get('id');
     const router = useRouter();
     const toast = useRef<Toast>(null);
+
     // --- ESTADOS ---
     const [orderData, setOrderData] = useState<any>(null);
     const [clientData, setClientData] = useState<any>(null);
     const [orderItems, setOrderItems] = useState<any[]>([]);
+
+    // Estado para la URL de la imagen
     const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const [imageError, setImageError] = useState(false); // Nuevo estado
+
     const [loading, setLoading] = useState(true);
     const [statuses, setStatuses] = useState<any[]>([]);
+
     const [designStatus, setDesignStatus] = useState<string>('');
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,6 +43,10 @@ const DesignerOrderDetailPage = () => {
         if (orderId) {
             loadInitialData(Number(orderId));
         }
+    }, [orderId]);
+
+    useEffect(() => {
+        setImageError(false);
     }, [orderId]);
 
     useEffect(() => {
@@ -68,6 +78,7 @@ const DesignerOrderDetailPage = () => {
             const yaEstuvoEnProceso = historial.some((h: any) => h.claveEstatus === 'DIS_EN_PROCESO');
             const esEstatusPrevio = [statusPagada, statusConInsumos, statusSinInsumos].includes(order.idEstatusActual);
             let ordenActualizada = { ...order };
+
             if (statusEnProceso && esEstatusPrevio && !yaEstuvoEnProceso) {
                 try {
                     const userStr = localStorage.getItem('user');
@@ -83,7 +94,6 @@ const DesignerOrderDetailPage = () => {
                     }
                 } catch (err) { console.error("Error auto-avance", err); }
             }
-
             setOrderData(ordenActualizada);
             if (order.detalles && order.detalles.length > 0) {
                 const productMap = new Map();
@@ -91,13 +101,10 @@ const DesignerOrderDetailPage = () => {
                     const pId = String(p.idProducto || p.id);
                     productMap.set(pId, p);
                 });
-
                 const enrichedItems = order.detalles.map((detalle: any) => {
                     const productInfo = productMap.get(String(detalle.idProducto));
                     const nombreReal = productInfo?.descripcion || productInfo?.nombre || `Producto #${detalle.idProducto}`;
-                    const medidasReales = productInfo?.formatoTamano ||
-                        productInfo?.medidas ||
-                        'Estándar';
+                    const medidasReales = productInfo?.formatoTamano || productInfo?.medidas || 'Estándar';
                     const unidadVentaReal = productInfo?.unidadVenta || 'Unidad';
                     return {
                         ...detalle,
@@ -124,7 +131,7 @@ const DesignerOrderDetailPage = () => {
     const onFileSelect = (event: FileUploadSelectEvent) => {
         if (event.files && event.files.length > 0) {
             setUploadedFile(event.files[0]);
-            toast.current?.show({ severity: 'info', summary: 'Archivo listo', detail: 'Se subirá al guardar.', life: 2000 });
+            toast.current?.show({ severity: 'info', summary: 'Archivo seleccionado', detail: 'Listo para subir.', life: 2000 });
         }
     };
 
@@ -133,15 +140,14 @@ const DesignerOrderDetailPage = () => {
             toast.current?.show({ severity: 'warn', summary: 'Atención', detail: 'Debes indicar si el cliente aceptó o rechazó.', life: 3000 });
             return;
         }
-
         if (designStatus === 'accepted') {
             const tieneArchivoNuevo = uploadedFile !== null;
             const tieneArchivoPrevio = orderData.rutaArchivo && orderData.rutaArchivo !== 'Pendiente';
             if (!tieneArchivoNuevo && !tieneArchivoPrevio) {
                 toast.current?.show({
                     severity: 'error',
-                    summary: 'Imposible avanzar',
-                    detail: 'Para enviar a impresión, DEBES subir el archivo final de diseño.',
+                    summary: 'Archivo Requerido',
+                    detail: 'Para aprobar, debes subir el diseño final o asegurar que ya exista uno.',
                     life: 5000
                 });
                 return;
@@ -170,18 +176,14 @@ const DesignerOrderDetailPage = () => {
                 idEstatusDestino: nuevoEstatusId,
                 clienteAprobo: clienteAprobo
             });
-            toast.current?.show({
-                severity: 'success',
-                summary: 'Procesado',
-                detail: clienteAprobo ? 'Diseño aprobado y enviado a impresión.' : 'Orden rechazada para correcciones.',
-                life: 3000
-            });
+            toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Orden procesada correctamente.', life: 3000 });
+
             setTimeout(() => {
                 router.push('/designerlist');
             }, 1500);
         } catch (error: any) {
-            console.error("Error al procesar:", error);
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Ocurrió un error al procesar la orden.' });
+            console.error("Error procesando:", error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo procesar la orden.' });
         } finally {
             setIsSubmitting(false);
         }
@@ -222,6 +224,7 @@ const DesignerOrderDetailPage = () => {
                 {/* DETALLES */}
                 <Card title="Detalles del Trabajo" className="mb-4 shadow-2">
                     <div className="grid">
+                        {/* COLUMNA IZQUIERDA: TABLA Y DATOS (7/12 del ancho) */}
                         <div className="col-12 md:col-7 flex flex-column gap-3">
                             <div className="p-2 border-1 surface-border border-round bg-gray-50">
                                 <h3 className="text-lg font-bold m-0 mb-2 p-2 text-700">Especificaciones</h3>
@@ -249,12 +252,10 @@ const DesignerOrderDetailPage = () => {
                                         }}
                                         className="text-center"
                                     ></Column>
-
                                     <Column field="nombreProducto" header="Producto" style={{ width: '40%' }}></Column>
-
                                     <Column
                                         field="medidas"
-                                        header="Medidas / Info"
+                                        header="Medidas"
                                         style={{ width: '40%' }}
                                         body={(rowData) => (
                                             <div className="flex flex-column">
@@ -262,23 +263,21 @@ const DesignerOrderDetailPage = () => {
                                                     <i className="pi pi-arrows-h mr-1 text-sm"></i>
                                                     {rowData.medidas}
                                                 </span>
-                                                {rowData.unidadVenta && (
-                                                    <small className="text-500 text-xs">Tipo: {rowData.unidadVenta}</small>
-                                                )}
                                             </div>
                                         )}
                                     ></Column>
                                 </DataTable>
                             </div>
 
+                            {/* DATOS CLIENTE */}
                             <div className="grid mt-2">
-                                <div className="col-6">
+                                <div className="col-12 md:col-6">
                                     <label className="text-sm font-bold text-600 block mb-1">Cliente</label>
-                                    <div className="p-2 surface-100 border-round font-medium">
+                                    <div className="p-2 surface-100 border-round font-medium text-overflow-ellipsis overflow-hidden white-space-nowrap">
                                         {clientData?.nombre || orderData.clienteNombre || 'Mostrador'}
                                     </div>
                                 </div>
-                                <div className="col-6">
+                                <div className="col-12 md:col-6">
                                     <label className="text-sm font-bold text-600 block mb-1">Teléfono</label>
                                     <div className="p-2 surface-100 border-round font-medium">
                                         <i className="pi pi-phone text-green-600 mr-2"></i>
@@ -287,82 +286,115 @@ const DesignerOrderDetailPage = () => {
                                 </div>
                                 <div className="col-12">
                                     <label className="text-sm font-bold text-600 block mb-1">Comentarios</label>
-                                    <div className="p-3 bg-yellow-50 border-1 border-yellow-100 border-round text-700 font-italic">
+                                    <div className="p-3 bg-yellow-50 border-1 border-yellow-100 border-round text-700 font-italic" style={{ minHeight: '60px' }}>
                                         {orderData.comentarios || 'Sin comentarios'}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="col-12 md:col-5 flex flex-column align-items-center justify-content-start pl-4 border-left-1 surface-border">
+                        {/* COLUMNA DERECHA: VISUALIZADOR DE IMAGEN (5/12 del ancho) */}
+                        <div className="col-12 md:col-5 flex flex-column pl-0 md:pl-4 mt-4 md:mt-0 border-top-1 md:border-top-none md:border-left-1 surface-border">
                             <label className="font-bold block mb-2 w-full text-center text-600">Referencia Inicial</label>
-                            <div className="flex align-items-center justify-content-center w-full p-2 surface-50 border-round-xl border-1 border-dashed surface-border" style={{ minHeight: '250px' }}>
-                                {imageUrl ? (
+                            <div className="flex align-items-center justify-content-center w-full p-2 surface-50 border-round-xl border-1 border-dashed surface-border relative" style={{ minHeight: '300px' }}>
+                                {imageUrl && !imageError ? (
                                     <Image
                                         src={imageUrl}
                                         alt="Referencia"
                                         width="100%"
                                         preview
                                         className="shadow-2 border-round w-full block"
-                                        imageStyle={{ width: '100%', objectFit: 'contain', maxHeight: '300px' }}
+                                        imageStyle={{ width: '100%', height: 'auto', maxHeight: '350px', objectFit: 'contain' }}
+                                        onError={(e) => {
+                                            console.warn("La imagen no existe o falló la carga");
+                                            setImageError(true);
+                                        }}
                                     />
                                 ) : (
                                     <div className="flex flex-column align-items-center justify-content-center text-gray-400">
                                         <i className="pi pi-image text-5xl mb-2"></i>
-                                        <span className="text-sm">Sin archivo</span>
+                                        <span className="text-sm text-center px-4">
+                                            {imageError ? "Archivo no encontrado (404)" : "Sin archivo adjunto"}
+                                        </span>
                                     </div>
+                                )}
+                            </div>
+
+                            {/* Link externo si existe archivo */}
+                            {orderData.rutaArchivo && orderData.rutaArchivo !== 'Pendiente' && (
+                                <div className="mt-3 text-center">
+                                    <div className="text-xs text-gray-500 mb-1 overflow-hidden text-overflow-ellipsis px-2" title={orderData.rutaArchivo}>
+                                        {orderData.rutaArchivo}
+                                    </div>
+                                    <a href={imageUrl!} target="_blank" rel="noopener noreferrer" className="p-button p-button-sm p-button-outlined p-button-secondary text-xs no-underline">
+                                        <i className="pi pi-external-link mr-2"></i>
+                                        Abrir en pestaña nueva
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </Card>
+
+                {/* AREA DE SUBIDA Y APROBACION */}
+                <Card title="Entrega de Diseño" className="mb-4 shadow-2">
+                    <p className="text-600 mb-4 text-sm">
+                        Contacta al cliente para revisión. Si el diseño es aprobado, sube el archivo final para enviar a producción.
+                    </p>
+                    <div className="grid">
+                        <div className="col-12 md:col-6 flex flex-column gap-3">
+                            <label className="font-bold text-lg">Respuesta del cliente:</label>
+                            <div className={`field-radiobutton p-3 border-1 border-round transition-colors ${designStatus === 'accepted' ? 'surface-100 border-green-500' : 'surface-border'}`}>
+                                <RadioButton inputId="accepted" name="design" value="accepted" onChange={(e) => setDesignStatus(e.value)} checked={designStatus === 'accepted'} />
+                                <label htmlFor="accepted" className="ml-2 font-medium text-green-700 cursor-pointer w-full">
+                                    <i className="pi pi-check-circle mr-2"></i>
+                                    Aprobado (Enviar a Taller)
+                                </label>
+                            </div>
+                            <div className={`field-radiobutton p-3 border-1 border-round transition-colors ${designStatus === 'rejected' ? 'surface-100 border-red-500' : 'surface-border'}`}>
+                                <RadioButton inputId="rejected" name="design" value="rejected" onChange={(e) => setDesignStatus(e.value)} checked={designStatus === 'rejected'} />
+                                <label htmlFor="rejected" className="ml-2 font-medium text-red-700 cursor-pointer w-full">
+                                    <i className="pi pi-times-circle mr-2"></i>
+                                    Rechazado (Requiere cambios)
+                                </label>
+                            </div>
+                        </div>
+                        <div className="col-12 md:col-6">
+                            <div className={`h-full flex flex-column align-items-center justify-content-center text-center border-1 border-round p-4 transition-colors ${designStatus === 'accepted' ? 'surface-0 border-green-500 bg-green-50' : 'surface-border bg-gray-50'}`}>
+                                <i className="pi pi-cloud-upload text-4xl text-600 mb-3"></i>
+                                <p className="m-0 font-semibold mb-3">Subir Diseño Final / Prueba</p>
+                                <FileUpload
+                                    mode="basic"
+                                    name="file"
+                                    accept="image/*,application/pdf"
+                                    maxFileSize={50000000} // 50MB
+                                    chooseLabel={uploadedFile ? "Cambiar Archivo" : "Seleccionar Archivo"}
+                                    className={`p-button-outlined ${uploadedFile ? 'p-button-success' : 'p-button-secondary'}`}
+                                    auto={false}
+                                    onSelect={onFileSelect}
+                                />
+                                {uploadedFile && (
+                                    <div className="mt-2 text-green-700 font-bold text-sm">
+                                        <i className="pi pi-file mr-1"></i>
+                                        Listo para subir: {uploadedFile.name}
+                                    </div>
+                                )}
+                                {!uploadedFile && designStatus === 'accepted' && !imageUrl && (
+                                    <small className="block mt-2 text-red-500 font-bold animate-pulse">
+                                        ⚠️ Requerido: Sube el archivo final.
+                                    </small>
                                 )}
                             </div>
                         </div>
                     </div>
                 </Card>
 
-                {/* ENTREGA Y ACCIONES (Se mantienen igual) */}
-                <Card title="Subida de diseño" className="mb-4 shadow-2">
-                    <div className="grid">
-                        <div className="col-12 md:col-6 flex flex-column gap-3">
-                            <label className="font-bold text-lg">Respuesta del cliente:</label>
-                            <div className="field-radiobutton p-3 border-1 border-round surface-border hover:surface-50 transition-colors">
-                                <RadioButton inputId="accepted" name="design" value="accepted" onChange={(e) => setDesignStatus(e.value)} checked={designStatus === 'accepted'} />
-                                <label htmlFor="accepted" className="ml-2 font-medium text-green-700 cursor-pointer w-full">
-                                    <i className="pi pi-check-circle mr-2"></i>
-                                    Aprobado (Enviar a taller)
-                                </label>
-                            </div>
-                            <div className="field-radiobutton p-3 border-1 border-round surface-border hover:surface-50 transition-colors">
-                                <RadioButton inputId="rejected" name="design" value="rejected" onChange={(e) => setDesignStatus(e.value)} checked={designStatus === 'rejected'} />
-                                <label htmlFor="rejected" className="ml-2 font-medium text-red-700 cursor-pointer w-full">
-                                    <i className="pi pi-times-circle mr-2"></i>
-                                    Rechazado (El cliente solicito correcciones)
-                                </label>
-                            </div>
-                        </div>
-
-                        <div className="col-12 md:col-6">
-                            <div className={`h-full flex flex-column align-items-center justify-content-center text-center border-1 border-round p-4 transition-colors ${designStatus === 'accepted' ? 'surface-0 border-green-500' : 'surface-border bg-50'}`}>
-                                <i className="pi pi-cloud-upload text-4xl text-400 mb-3"></i>
-                                <p className="m-0 font-semibold mb-3">Subir diseño final</p>
-                                <FileUpload
-                                    mode="basic"
-                                    name="file"
-                                    accept="image/*,application/pdf"
-                                    maxFileSize={50000000}
-                                    chooseLabel={uploadedFile ? "Cambiar Archivo" : "Seleccionar Archivo"}
-                                    className={`p-button-outlined ${uploadedFile ? 'p-button-success' : 'p-button-secondary'}`}
-                                    auto={false}
-                                    onSelect={onFileSelect}
-                                />
-                                {uploadedFile && <div className="mt-2 text-green-600 font-bold text-sm">Listo: {uploadedFile.name}</div>}
-                            </div>
-                        </div>
-                    </div>
-                </Card>
-
+                {/* BOTÓN DE ACCIÓN */}
                 <Card className="shadow-2 surface-50">
                     <div className="flex flex-column md:flex-row align-items-center justify-content-between gap-3">
                         <div className="flex align-items-center gap-2 text-700">
                             <i className="pi pi-info-circle text-xl"></i>
-                            <span>Esta acción actualizará el estatus.</span>
+                            <span>Esta acción actualizará el estatus de la orden irreversiblemente.</span>
                         </div>
                         <Button
                             label={designStatus === 'rejected' ? "Solicitar Correcciones" : "Enviar a Impresión"}
@@ -375,8 +407,8 @@ const DesignerOrderDetailPage = () => {
                         />
                     </div>
                 </Card>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 
