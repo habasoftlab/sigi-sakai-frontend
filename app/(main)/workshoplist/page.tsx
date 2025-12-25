@@ -44,26 +44,29 @@ const WorkshopListPage = () => {
                 ClientService.getAll()
             ]);
             const rawOrders = ordersResponse.content || ordersResponse || [];
+
             const clientMap = new Map<number, string>();
             clientsData.forEach((client) => {
-                if (client.id) {
-                    clientMap.set(client.id, client.nombre);
-                }
+                if (client.id) clientMap.set(client.id, client.nombre);
             });
+
             const processedOrders = rawOrders.map((order: any) => {
                 const resolvedClientName = clientMap.get(order.idCliente) || `Cliente #${order.idCliente}`;
                 let status: WorkshopStatus = 'pending';
-                if (order.insumosVerificados) {
+                if (order.insumosVerificados || order.idEstatusActual === 3) {
                     status = 'confirmed';
-                } else if (order.idEstatusActual === 6) {
+                }
+                else if (order.idEstatusActual === 4) {
                     status = 'delayed';
-                } else {
+                }
+                else {
                     status = 'pending';
                 }
-                const designReady = order.rutaArchivo && order.rutaArchivo !== 'Pendiente';
-                const isStatusReadyForPrint = order.idEstatusActual >= 5;
-                const canPrint = designReady && order.insumosVerificados && isStatusReadyForPrint;
 
+                const hasFile = order.rutaArchivo && order.rutaArchivo !== 'Pendiente';
+                const hasSupplies = status === 'confirmed';
+                const isStatusReady = order.idEstatusActual === 9 || order.idEstatusActual === 5;
+                const canPrint = hasFile && hasSupplies && isStatusReady;
                 return {
                     ...order,
                     clienteNombre: resolvedClientName,
@@ -91,14 +94,14 @@ const WorkshopListPage = () => {
 
         switch (rowData.workshopStatus) {
             case 'confirmed':
-                icon = 'pi pi-check-square'; 
+                icon = 'pi pi-check-square';
                 colorClass = 'text-green-500';
-                tooltip = 'Insumos listos';
+                tooltip = 'Insumos verificados';
                 break;
             case 'delayed':
-                icon = 'pi pi-calendar-times';
+                icon = 'pi pi-exclamation-triangle';
                 colorClass = 'text-red-500';
-                tooltip = 'Solicitud de insumos demorada';
+                tooltip = 'Faltan insumos (Estatus 4)';
                 break;
             case 'pending':
             default:
@@ -121,13 +124,13 @@ const WorkshopListPage = () => {
 
     const printDesignBodyTemplate = (rowData: ExtendedOrder) => {
         const canPrint = rowData.canPrint;
-        let tooltip = "Listo para imprimir";
-        let iconClass = canPrint ? "text-yellow-500" : "text-400 opacity-30";
+        let tooltip = "Enviar a impresión";
+        let iconClass = canPrint ? "text-yellow-600" : "text-300";
 
         if (!canPrint) {
             if (!rowData.rutaArchivo || rowData.rutaArchivo === 'Pendiente') tooltip = "Falta archivo de diseño";
-            else if (!rowData.insumosVerificados) tooltip = "Faltan insumos (Revisar caja)";
-            else tooltip = "Orden no está en estatus de impresión";
+            else if (rowData.workshopStatus !== 'confirmed') tooltip = "Faltan insumos";
+            else if (rowData.idEstatusActual !== 9 && rowData.idEstatusActual !== 5) tooltip = "Diseño no aprobado por cliente aún";
         }
 
         return (
@@ -171,16 +174,16 @@ const WorkshopListPage = () => {
 
                     <div className="flex flex-wrap gap-3 mt-3">
                         <span className="px-3 py-1 border-round surface-100 bg-blue-100 text-blue-700 font-bold text-sm flex align-items-center">
-                            <i className="pi pi-box mr-2 text-blue-500"></i>Por Revisar
+                            <i className="pi pi-box mr-2 text-blue-500"></i>Por revisar insumos
                         </span>
                         <span className="px-3 py-1 border-round surface-100 bg-green-100 text-green-700 font-bold text-sm flex align-items-center">
-                            <i className="pi pi-check-square mr-2 text-green-500"></i>Insumos OK
+                            <i className="pi pi-check-square mr-2 text-green-500"></i>Insumos listos
                         </span>
                         <span className="px-3 py-1 border-round surface-100 bg-red-100 text-red-700 font-bold text-sm flex align-items-center">
-                            <i className="pi pi-calendar-times mr-2 text-red-500"></i>Faltantes
+                            <i className="pi pi-calendar-times mr-2 text-red-500"></i>En espera de insumos
                         </span>
                         <span className="px-3 py-1 border-round surface-100 bg-yellow-100 text-yellow-700 font-bold text-sm flex align-items-center">
-                            <i className="pi pi-print mr-2 text-yellow-600"></i>Listo para Imprimir
+                            <i className="pi pi-print mr-2 text-yellow-600"></i>Listo para impresion
                         </span>
                     </div>
                 </Card>
@@ -197,12 +200,12 @@ const WorkshopListPage = () => {
                         rowClassName={(data) => data.workshopStatus === 'delayed' ? 'bg-red-50' : ''}
                     >
                         <Column field="idOrden" header="Folio" sortable style={{ width: '10%' }} className="font-bold" />
-                        <Column 
-                            field="fechaEntregaFormal" 
-                            header="Entrega" 
+                        <Column
+                            field="fechaEntregaFormal"
+                            header="Entrega"
                             body={(d) => d.fechaEntregaFormal ? new Date(d.fechaEntregaFormal).toLocaleDateString() : 'Pendiente'}
-                            sortable 
-                            style={{ width: '15%' }} 
+                            sortable
+                            style={{ width: '15%' }}
                         />
                         <Column field="clienteNombre" header="Cliente" sortable style={{ width: '35%' }} />
                         <Column field="montoTotal" header="Valor" body={(data) => formatCurrency(data.montoTotal)} sortable style={{ width: '15%' }} />
