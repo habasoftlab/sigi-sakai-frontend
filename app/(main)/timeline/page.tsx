@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card } from 'primereact/card';
@@ -8,15 +7,13 @@ import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { OrderService } from '@/app/service/orderService';
 
-// 1. Interfaz basada en tu respuesta del Backend
 interface HistorialItem {
-    fecha: string;        // "11 Dec 2025 - 08:51 PM"
-    estatus: string;      // "Cotización iniciada"
-    usuario: string;      // "Jose Tristan..."
-    claveEstatus: string; // "COT_INICIADA"
+    fecha: string;
+    estatus: string;
+    usuario: string;
+    claveEstatus: string;
 }
 
-// Interfaz extendida para uso visual en el Timeline
 interface TimelineEvent extends HistorialItem {
     icon: string;
     color: string;
@@ -57,7 +54,6 @@ const OrderTimelinePage = () => {
                     ...item,
                     ...getStyleByStatus(item.claveEstatus)
                 }));
-
                 setEvents(formattedEvents);
             } catch (error) {
                 console.error(error);
@@ -66,7 +62,6 @@ const OrderTimelinePage = () => {
                 setLoading(false);
             }
         };
-
         fetchHistory();
     }, [orderId]);
 
@@ -78,8 +73,9 @@ const OrderTimelinePage = () => {
                 return { icon: 'pi pi-dollar', color: '#2196F3' };
             case 'ORD_EN_DISENO_CON_INSUMOS':
             case 'ORD_EN_DISENO_SIN_INSUMOS':
+                return { icon: 'pi pi-palette', color: '#720a85ff' };
             case 'DIS_EN_PROCESO':
-                return { icon: 'pi pi-palette', color: '#9C27B0' };
+                return { icon: 'pi pi-file-edit', color: '#9C27B0' };
             case 'DIS_EN_REVISION_CLIENTE':
                 return { icon: 'pi pi-eye', color: '#673AB7' };
             case 'DIS_DISENO_APROBADO':
@@ -89,7 +85,7 @@ const OrderTimelinePage = () => {
             case 'ORD_EN_IMPRESION':
                 return { icon: 'pi pi-print', color: '#FF9800' };
             case 'ORD_LISTA_ENTREGA':
-                return { icon: 'pi pi-box', color: '#009688' };
+                return { icon: 'pi pi-verified', color: '#009688' };
             case 'ORD_ENTREGADA':
                 return { icon: 'pi pi-check-circle', color: '#607D8B' };
             case 'CANCELADA':
@@ -148,7 +144,6 @@ const OrderTimelinePage = () => {
                     <h2 className="m-0 text-900">Seguimiento de Orden</h2>
                     <span className="text-gray-500">Historial de movimientos para la orden #{orderId || '...'}</span>
                 </div>
-                {/* BOTÓN REGRESAR DINÁMICO */}
                 <Button
                     label="Regresar"
                     icon="pi pi-arrow-left"

@@ -5,30 +5,29 @@ import { AutoComplete, AutoCompleteCompleteEvent } from 'primereact/autocomplete
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
-import { Dropdown } from 'primereact/dropdown';
-import { Checkbox } from 'primereact/checkbox';
-import { InputNumber, InputNumberValueChangeEvent } from 'primereact/inputnumber';
-import { InputText } from 'primereact/inputtext';
-import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
-import { Divider } from 'primereact/divider';
-import { FileUpload, FileUploadHandlerEvent } from 'primereact/fileupload';
 import Link from 'next/link';
-
 // SERVICIOS
 import { ClientService } from "@/app/service/clientService";
 import { CatalogService } from "@/app/service/catalogService";
 import { OrderService } from "@/app/service/orderService";
+import { UserService } from "@/app/service/userService";
+// TIPOS
 import { Client } from "@/app/types/clients";
 import { Producto, NuevaOrdenRequest } from "@/app/types/orders";
+// DIALOGS
+import { QuoteListDialog } from './QuoteListDialog';
+import { ActiveOrdersDialog } from './ActiveOrdersDialog';
+import { QuoteSummaryDialog } from './QuoteSummaryDialog';
+import { OrderPaymentDialog, PaymentData } from './OrderPaymentDialog';
+import { ProductQuantityDialog } from './ProductQuantityDialog';
 import { ClientFormDialog } from "@/app/components/ClientFormDialog";
 import { ClientSearchDialog } from "@/app/components/ClientSearchDialog";
-import { UserService } from "@/app/service/userService";
-import { Tag } from 'primereact/tag';
 
 interface QuoteItemUI extends Producto {
     cantidad: number;
     importe: number;
+    precioAplicado: number;
 }
 
 const Counter = () => {
@@ -37,19 +36,16 @@ const Counter = () => {
     const [designers, setDesigners] = useState<any[]>([]);
     const [productsCatalog, setProductsCatalog] = useState<any[]>([]);
     const [currentUserId, setCurrentUserId] = useState<number>(0);
-
     // ESTADO DEL CARRITO / ORDEN ACTUAL
     const [quoteItems, setQuoteItems] = useState<QuoteItemUI[]>([]);
     const [selectedDesigner, setSelectedDesigner] = useState<number | null>(null);
     const [assignedClient, setAssignedClient] = useState<Client | null>(null);
     const [requiresBilling, setRequiresBilling] = useState(false);
     const quoteTotal = quoteItems.reduce((total, item) => total + item.importe, 0);
-
     // Variables críticas para el flujo de actualización
     const [activeOrderId, setActiveOrderId] = useState<number | null>(null);
     const [activeOrderTotal, setActiveOrderTotal] = useState<number>(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
     // ESTADOS DE UI (MODALES)
     const [showQuoteSummary, setShowQuoteSummary] = useState(false);
     const [showAddNewClientDialog, setShowAddNewClientDialog] = useState(false);
@@ -60,10 +56,7 @@ const Counter = () => {
     const [paymentConditions, setPaymentConditions] = useState<any[]>([]);
     const [activeOrderStatus, setActiveOrderStatus] = useState<number>(0);
     const [activeOrderPaid, setActiveOrderPaid] = useState(0);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [orderNotes, setOrderNotes] = useState('');
-
-
     // DATOS PARA LISTAS
     const [ShowOrdersList, setShowOrdersList] = useState(false);
     const [ordersList, setOrdersList] = useState<any[]>([]);
@@ -78,20 +71,15 @@ const Counter = () => {
         page: 0
     });
     const [expandedRows, setExpandedRows] = useState<any>([]);
-
-
     // VARIABLES TEMPORALES (Inputs)
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [pendingProduct, setPendingProduct] = useState<Producto | null>(null);
-    const [pendingQuantity, setPendingQuantity] = useState<number>(1);
-
     // LÓGICA DE PAGOS (Para Modal Orden)
     const [paymentType, setPaymentType] = useState<'unico' | 'anticipo' | 'plazos'>('unico');
     const [advanceAmount, setAdvanceAmount] = useState<number>(0);
-
+    const [activeOrderCondition, setActiveOrderCondition] = useState<number>(1);
     // Filtros y Toast
     const toast = useRef<Toast>(null);
-
     // Calculado
     const currentCartTotal = quoteItems.reduce((acc, item) => acc + item.importe, 0);
 
@@ -144,14 +132,15 @@ const Counter = () => {
         setIsLoadingList(true);
         try {
             let response;
-
             if (type === 'quotes') {
                 response = await OrderService.getCotizacionesYCanceladas(page, rows);
             } else {
                 response = await OrderService.getOrdenesActivas(page, rows);
             }
-            const data = response.content || [];
-            const total = response.totalElements || 0;
+            const data = response.content || response || [];
+            const total = response.page?.totalElements
+                || response.totalElements
+                || data.length;
             const processedData = data.map((item: any) => {
                 const designerName = designers.find((d: any) => d.value === item.idUsuarioDisenador)?.label || 'Sin Asignar';
                 return { ...item, nombreDisenador: designerName };
@@ -201,7 +190,6 @@ const Counter = () => {
                 { label: '--- Sin Asignar (Pendiente) ---', value: null },
                 ...options
             ]);
-
         } catch (error) {
             console.error("Error cargando diseñadores", error);
             setDesigners([{ label: '--- Sin Asignar (Pendiente) ---', value: null }]);
@@ -325,7 +313,6 @@ const Counter = () => {
             })),
             idUsuarioAccion: currentUserId
         };
-
         try {
             await OrderService.crearOrden(nuevaOrden);
             toast.current?.show({ severity: 'success', summary: 'Cotización Guardada', detail: 'Disponible en la lista.' });
@@ -353,23 +340,36 @@ const Counter = () => {
         if (!e.query.trim()) { setProducts([]); return; }
         try { setProducts(await CatalogService.getProductos(e.query)); } catch (err) { }
     };
+
     const onProductSelect = (e: any) => {
-        if (e.value && !quoteItems.find(i => i.idProducto === e.value.idProducto)) {
-            setPendingProduct(e.value); setPendingQuantity(1); setShowQuantityDialog(true);
+        if (e.value) {
+            const exists = quoteItems.some(i => i.idProducto === e.value.idProducto);
+            if (exists) {
+                toast.current?.show({
+                    severity: 'warn',
+                    summary: 'Producto duplicado',
+                    detail: 'Este producto ya está en la lista. Elimínalo si quieres cambiar la cantidad.',
+                    life: 3000
+                });
+                setSelectedProduct(null);
+                return;
+            }
+            setPendingProduct(e.value);
+            setShowQuantityDialog(true);
         }
         setSelectedProduct(null);
     };
 
-    const handleAddItem = () => {
-        if (!pendingProduct) return;
+    const handleAddProductFromModal = (product: Producto, quantity: number) => {
+        const precioReal = product.precioUnitario;
         const newItem: QuoteItemUI = {
-            ...pendingProduct,
-            cantidad: pendingQuantity,
-            importe: pendingProduct.precioUnitario * pendingQuantity,
+            ...product,
+            cantidad: quantity,
+            precioAplicado: precioReal,
+            precioUnitario: precioReal,
+            importe: precioReal * quantity,
         };
         setQuoteItems([...quoteItems, newItem]);
-        setShowQuantityDialog(false);
-        setPendingProduct(null);
     };
 
     const estimatedProductionTime = useMemo(() => {
@@ -386,95 +386,33 @@ const Counter = () => {
 
     const handleDelete = (row: any) => setQuoteItems(quoteItems.filter(i => i.idProducto !== row.idProducto));
 
-    const headerTemplate = (data: any, options: any) => {
-        return (
-            <div
-                className="inline-flex align-items-center gap-2 px-2 py-1 cursor-pointer transition-colors border-round hover:surface-100"
-                style={{ verticalAlign: 'middle' }}
-                onClick={options.onTogglerClick}
-            >
-                <i className="pi pi-user text-primary text-xl"></i>
-                <span className="font-bold text-lg text-900">
-                    {data.nombreDisenador}
-                </span>
-            </div>
-        );
-    };
-
-    const handleConfirmOrder = async () => {
-        if (!activeOrderId) return;
-        if (isSubmitting) return;
+    const handleProcessPayment = async (data: PaymentData) => {
+        if (!activeOrderId || isSubmitting) return;
         setIsSubmitting(true);
         try {
-            let condicionEncontrada: any = null;
-            if (paymentType === 'unico') {
-                condicionEncontrada = paymentConditions.find(c => c.numeroPlazos === 1);
-            }
-            else if (paymentType === 'anticipo') {
-                condicionEncontrada = paymentConditions.find(c => c.descripcion.includes('20%'))
-                    || paymentConditions.find(c => c.numeroPlazos === 2);
-            }
-            else if (paymentType === 'plazos') {
-                if (activeOrderTotal >= 3000) {
-                    condicionEncontrada = paymentConditions.find(c => c.numeroPlazos === 3);
-                } else {
-                    condicionEncontrada = paymentConditions.find(c => c.descripcion.includes('50%'))
-                        || paymentConditions.find(c => c.numeroPlazos === 2 && !c.descripcion.includes('20%'));
-                }
-            }
-            const idCondicionFinal = condicionEncontrada ? condicionEncontrada.idCondicion : 1;
-            if (!condicionEncontrada) {
-                console.warn("No se encontró la condición exacta en el catálogo, usando ID 1 por defecto.");
-            }
-            await OrderService.updateCondicionPago(activeOrderId, idCondicionFinal);
-            if (advanceAmount > 0) {
+            await OrderService.updateCondicionPago(activeOrderId, data.conditionId);
+            if (data.amount > 0) {
                 await OrderService.registrarPago(activeOrderId, {
-                    monto: advanceAmount,
-                    referencia: `Pago ${paymentType} - ${orderNotes}`,
+                    monto: data.amount,
+                    referencia: `Pago ${data.paymentType} - ${data.notes}`,
                     idUsuario: currentUserId
                 });
             }
-            if (activeOrderStatus === 1) {
-                const statusUpdateBody = { idUsuario: currentUserId };
-                await OrderService.avanzarEstatus(activeOrderId, statusUpdateBody);
-            }
-            if (selectedFile) {
+            if (data.file) {
                 try {
-                    await OrderService.subirArchivo(activeOrderId, selectedFile);
-                    toast.current?.show({
-                        severity: 'info',
-                        summary: 'Archivo Subido',
-                        detail: 'El archivo se adjuntó a la orden correctamente.'
-                    });
-                } catch (fileError) {
-                    console.error("Error subiendo archivo:", fileError);
-                    toast.current?.show({
-                        severity: 'warn',
-                        summary: 'Advertencia',
-                        detail: 'El pago se registró, pero falló la subida del archivo.'
-                    });
-                }
+                    await OrderService.subirArchivo(activeOrderId, data.file);
+                    toast.current?.show({ severity: 'info', summary: 'Archivo', detail: 'Archivo adjuntado correctamente.' });
+                } catch (e) { console.error(e); }
             }
-            toast.current?.show({
-                severity: 'success',
-                summary: 'Orden Confirmada',
-                detail: `Pago registrado y orden enviada a producción.`
-            });
+            if (activeOrderStatus === 1) {
+                await OrderService.avanzarEstatus(activeOrderId, { idUsuario: currentUserId });
+            }
+            toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Orden actualizada correctamente' });
             setShowOrderSummary(false);
             setActiveOrderId(null);
-            setOrderNotes('');
-            setAdvanceAmount(0);
-            setActiveOrderItems([]);
             loadOrderHistory();
-            setSelectedFile(null);
         } catch (error: any) {
-            const msg = error.message || error.details || "No se pudo procesar la solicitud.";
-            toast.current?.show({
-                severity: 'error',
-                summary: 'Atención',
-                detail: msg,
-                life: 6000
-            });
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: error.message });
         } finally {
             setIsSubmitting(false);
         }
@@ -492,6 +430,7 @@ const Counter = () => {
         setOrderNotes('');
         setActiveOrderStatus(quoteRow.idEstatusActual);
         setActiveOrderPaid(quoteRow.montoPagado || 0);
+        setActiveOrderCondition(quoteRow.idCondicionPago || 1);
         try {
             const fullOrderData = await OrderService.getOrdenById(quoteRow.idOrden);
             if (fullOrderData.detalles && Array.isArray(fullOrderData.detalles)) {
@@ -534,6 +473,7 @@ const Counter = () => {
         setShowOrderSummary(true);
         setActiveOrderStatus(rowData.idEstatusActual);
         setActiveOrderPaid(rowData.montoPagado || 0);
+        setActiveOrderCondition(rowData.idCondicionPago || 1);
     };
 
     type TipoPago = 'unico' | 'anticipo' | 'plazos';
@@ -552,7 +492,7 @@ const Counter = () => {
                 if (orden.montoPagado >= (orden.montoTotal * 0.19)) {
                     montoSugerido = saldoPendiente;
                 } else {
-                    montoSugerido = orden.montoTotal * 0.20;
+                    montoSugerido = orden.montoTotal * 0.50;
                 }
                 break;
 
@@ -622,7 +562,16 @@ const Counter = () => {
                         style={{ width: '15%' }}
                     />
                     <Column field="cantidad" header="Cantidad" style={{ width: '15%' }} />
-                    <Column field="importe" header="Total" body={(d) => `$${d.importe}`} style={{ width: '15%', fontWeight: 'bold' }} />
+                    <Column
+                        field="importe"
+                        header="Total"
+                        body={(d) => (
+                            <span className="text-green-700 text-lg">
+                                ${d.importe.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                        )}
+                        style={{ width: '15%', fontWeight: 'bold', textAlign: 'right' }}
+                    />
                     <Column body={(d) => <Button icon="pi pi-trash" rounded text severity="danger" onClick={() => handleDelete(d)} />} style={{ width: '8%' }} />
                 </DataTable>
 
@@ -631,477 +580,68 @@ const Counter = () => {
                     <Button label="Cotizar" icon="pi pi-money-bill" className="p-button-lg" onClick={() => setShowQuoteSummary(true)} disabled={quoteItems.length === 0} />
                 </div>
 
-                {/* MODAL: LISTA DE COTIZACIONES*/}
-                <Dialog
-                    header="Lista de Cotizaciones"
+                <QuoteListDialog
                     visible={ShowQuoteList}
-                    style={{ width: '80vw', minWidth: '350px' }}
-                    modal
                     onHide={() => setShowQuotesList(false)}
-                >
-                    <DataTable
-                        value={quotesList}
-                        lazy={true}
-                        dataKey="idOrden"
-                        paginator={true}
-                        first={lazyParams.first}
-                        rows={lazyParams.rows}
-                        totalRecords={totalRecords}
-                        onPage={onPage}
-                        rowsPerPageOptions={[5, 10, 20]}
-                        loading={isLoadingList}
-                        emptyMessage="No se encontraron cotizaciones."
-                        // Configuración de Agrupamiento
-                        rowGroupMode="subheader"
-                        groupRowsBy="nombreDisenador"
-                        sortMode="single"
-                        sortField="nombreDisenador"
-                        sortOrder={1}
-                        rowGroupHeaderTemplate={headerTemplate}
-                        expandableRowGroups
-                        expandedRows={expandedRows}
-                        onRowToggle={(e) => setExpandedRows(e.data)}
-                    >
-                        <Column
-                            field="idOrden"
-                            header="Folio"
-                            style={{ width: '10%' }}
-                            body={(rowData) => <span className="font-bold">#{rowData.idOrden}</span>}
-                        />
-                        <Column
-                            field="fechaCreacion"
-                            header="Fecha"
-                            style={{ width: '15%' }}
-                            body={(rowData) => new Date(rowData.fechaCreacion).toLocaleDateString()}
-                        />
-                        <Column
-                            header="Cliente"
-                            field="idCliente"
-                            style={{ width: '30%' }}
-                            body={(d) => {
-                                const c = clients.find(cl => cl.id === d.idCliente);
-                                return c ? c.nombre : 'Público General';
-                            }}
-                        />
-                        <Column
-                            field="montoTotal"
-                            header="Total"
-                            body={(d) => `$${d.montoTotal.toFixed(2)}`}
-                            style={{ width: '20%' }}
-                            className="text-right font-medium"
-                        />
-                        <Column
-                            header="Acción"
-                            style={{ width: '15%', textAlign: 'center' }}
-                            body={(data) => (
-                                <Button
-                                    label="Retomar"
-                                    icon="pi pi-arrow-right"
-                                    size="small"
-                                    severity="info"
-                                    onClick={() => handleOrder(data)}
-                                    tooltip="Ver detalles y editar"
-                                />
-                            )}
-                        />
-                    </DataTable>
-                </Dialog>
+                    quotes={quotesList}
+                    clients={clients}
+                    loading={isLoadingList}
+                    totalRecords={totalRecords}
+                    lazyParams={lazyParams}
+                    onPage={onPage}
+                    expandedRows={expandedRows}
+                    onRowToggle={setExpandedRows}
+                    onRetake={handleOrder}
+                />
 
-                {/* MODAL: LISTA DE ÓRDENES ACTIVAS*/}
-                <Dialog
-                    header="Lista de Órdenes en Curso"
+                {/* MODAL: LISTA DE ÓRDENES */}
+                <ActiveOrdersDialog
                     visible={ShowOrdersList}
-                    style={{ width: '80vw' }}
-                    modal
                     onHide={() => setShowOrdersList(false)}
-                >
-                    <DataTable
-                        value={ordersList}
-                        lazy={true}
-                        dataKey="idOrden"
-                        paginator={true}
-                        first={lazyParams.first}
-                        rows={lazyParams.rows}
-                        totalRecords={totalRecords}
-                        onPage={onPage}
-                        rowsPerPageOptions={[5, 10, 20]}
-                        loading={isLoadingList}
-                        emptyMessage="No hay órdenes activas por el momento."
-                        // Configuración de Agrupamiento
-                        rowGroupMode="subheader"
-                        groupRowsBy="nombreDisenador"
-                        sortMode="single"
-                        sortField="nombreDisenador"
-                        sortOrder={1}
-                        rowGroupHeaderTemplate={headerTemplate}
-                        expandableRowGroups
-                        expandedRows={expandedRows}
-                        onRowToggle={(e) => setExpandedRows(e.data)}
-                    >
-                        <Column field="idOrden" header="Folio" style={{ width: '10%' }} className="font-bold" />
-                        <Column field="fechaCreacion" header="Fecha" body={(d) => new Date(d.fechaCreacion).toLocaleDateString()} style={{ width: '15%' }} />
-                        <Column
-                            header="Cliente"
-                            field="idCliente"
-                            body={(d) => clients.find(c => c.id === d.idCliente)?.nombre || 'Público General'}
-                        />
-                        <Column
-                            field="montoTotal"
-                            header="Total"
-                            body={(d) => `$${d.montoTotal.toFixed(2)}`}
-                            className="text-right"
-                        />
-                        <Column
-                            field="saldoPendiente"
-                            header="Saldo"
-                            className="text-right"
-                            body={(d) => {
-                                const saldo = d.saldoPendiente !== undefined ? d.saldoPendiente : (d.montoTotal - (d.montoPagado || 0));
-                                return (
-                                    <span className={saldo > 0.5 ? 'text-red-500 font-bold' : 'text-green-500 font-bold'}>
-                                        ${saldo.toFixed(2)}
-                                    </span>
-                                );
-                            }}
-                        />
-                        <Column
-                            header="Pagos"
-                            style={{ textAlign: 'center', width: '15%' }}
-                            body={(data) => {
-                                const saldo = data.saldoPendiente !== undefined ? data.saldoPendiente : (data.montoTotal - (data.montoPagado || 0));
-                                return saldo > 0.5 ?
-                                    <Button label="Abonar" icon="pi pi-dollar" severity="success" size="small" onClick={() => handleQuickPay(data)} /> :
-                                    <Tag severity="success" value="Pagado" icon="pi pi-check" />;
-                            }}
-                        />
-                    </DataTable>
-                </Dialog>
+                    orders={ordersList}
+                    clients={clients}
+                    loading={isLoadingList}
+                    totalRecords={totalRecords}
+                    lazyParams={lazyParams}
+                    onPage={onPage}
+                    expandedRows={expandedRows}
+                    onRowToggle={setExpandedRows}
+                    onQuickPay={handleQuickPay}
+                />
 
-                {/*MODAL: RESUMEN DE COTIZACIÓN*/}
-                <Dialog
-                    header="Confirmar Nueva Cotización"
+                {/* MODAL: RESUMEN DE COTIZACIÓN */}
+                <QuoteSummaryDialog
                     visible={showQuoteSummary}
-                    style={{ width: '60vw', minWidth: '500px' }}
-                    modal
                     onHide={handleCloseQuoteSummary}
-                >
-                    <div className="grid">
-                        <div className="col-12 md:col-8">
-                            <DataTable value={quoteItems} responsiveLayout="scroll" size="small" showGridlines stripedRows>
-                                <Column
-                                    header="Descripción del producto"
-                                    body={(rowData) => (
-                                        <span className="font-semibold">
-                                            {rowData.descripcion || rowData.nombre || rowData.producto?.nombre || "Producto sin nombre"}
-                                        </span>
-                                    )}
-                                ></Column>
-                                <Column field="cantidad" header="Cantidad" body={(item) => `${item.cantidad} u`} className="text-center"></Column>
-                                <Column field="importe" header="Importe" body={(item) => `$${item.importe.toFixed(2)}`} className="text-right font-bold"></Column>
-                            </DataTable>
+                    items={quoteItems}
+                    total={currentCartTotal}
+                    productionTime={estimatedProductionTime}
+                    assignedClient={assignedClient}
+                    onAssignClient={() => setShowAssignClientDialog(true)}
+                    onNewClient={() => setShowAddNewClientDialog(true)}
+                    designers={designers}
+                    selectedDesigner={selectedDesigner}
+                    onSelectDesigner={setSelectedDesigner}
+                    requiresBilling={requiresBilling}
+                    onToggleBilling={setRequiresBilling}
+                    onConfirm={handleCreateQuote}
+                />
 
-                            {/* Totales y Tiempos */}
-                            <div className="flex flex-column align-items-end mt-4 gap-2">
-                                <div className="text-xl font-bold text-900">
-                                    Total: <span className="text-primary text-2xl ml-2">${quoteTotal.toFixed(2)}</span>
-                                </div>
-                                <div className="text-600 flex align-items-center gap-2 bg-yellow-50 p-2 border-round">
-                                    <i className="pi pi-clock text-orange-500"></i>
-                                    <span className="font-medium">Producción estimada: {estimatedProductionTime} días hábiles</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="col-12 md:col-4 p-fluid flex flex-column gap-3">
-                            {/* Selector de Cliente */}
-                            {assignedClient ? (
-                                <div className="surface-100 p-3 border-round border-1 border-300 relative">
-                                    <div className="text-xs text-500 uppercase font-bold mb-1">Cliente Asignado</div>
-                                    <div className="font-bold text-lg text-900 mb-1">{assignedClient.nombre}</div>
-                                    <div className="text-sm text-700 flex align-items-center gap-2">
-                                        <i className="pi pi-id-card"></i>
-                                        {assignedClient.rfc || 'Sin RFC'}
-                                    </div>
-                                    <Button
-                                        icon="pi pi-pencil"
-                                        className="p-button-rounded p-button-text p-button-secondary absolute top-0 right-0 mt-2 mr-2"
-                                        onClick={() => setShowAssignClientDialog(true)}
-                                        tooltip="Cambiar cliente"
-                                    />
-                                </div>
-                            ) : (
-                                <div className="flex flex-column gap-2 border-1 border-dashed border-300 p-3 border-round surface-50">
-                                    <span className="text-center text-600 text-sm mb-1">Se requiere un cliente</span>
-                                    <Button label="Buscar Cliente" icon="pi pi-search" onClick={() => setShowAssignClientDialog(true)} severity="secondary" />
-                                    <Button label="Nuevo Cliente" icon="pi pi-user-plus" outlined onClick={() => setShowAddNewClientDialog(true)} />
-                                </div>
-                            )}
-
-                            <Divider />
-
-                            {/* Selector de Diseñador */}
-                            <span className="p-float-label mt-2">
-                                <Dropdown
-                                    inputId="designer-select"
-                                    value={selectedDesigner}
-                                    onChange={(e) => setSelectedDesigner(e.value)}
-                                    options={designers}
-                                    optionLabel="label"
-                                    optionValue="value"
-                                    placeholder="Seleccionar Diseñador"
-                                    showClear
-                                    className="w-full"
-                                />
-                                <label htmlFor="designer-select">Asignar a Diseñador</label>
-                            </span>
-
-                            {/* Facturación */}
-                            <div className={`field-checkbox mt-2 p-3 border-round border-1 ${requiresBilling ? 'surface-100 border-primary' : 'surface-0 border-300'}`}>
-                                <Checkbox
-                                    inputId="facturacion"
-                                    checked={requiresBilling}
-                                    onChange={(e) => setRequiresBilling(e.checked ?? false)}
-                                    disabled={!assignedClient || !assignedClient.rfc}
-                                />
-                                <label htmlFor="facturacion" className="ml-2 cursor-pointer w-full">
-                                    <span className="font-medium">¿Requiere Factura?</span>
-                                    {(!assignedClient || !assignedClient.rfc) &&
-                                        <div className="text-red-500 text-xs mt-1">
-                                            <i className="pi pi-exclamation-circle mr-1"></i>
-                                            Cliente sin RFC
-                                        </div>
-                                    }
-                                </label>
-                            </div>
-
-                            <Button
-                                label="Crear Cotización"
-                                icon="pi pi-save"
-                                className="p-button-lg mt-auto shadow-4"
-                                onClick={handleCreateQuote}
-                                disabled={!assignedClient}
-                            />
-                        </div>
-                    </div>
-                </Dialog>
-
-                {/*MODAL: RESUMEN DE LA ORDEN*/}
-                <Dialog
-                    header={activeOrderItems.length > 0 ? `Resumen de la orden #${activeOrderId || ''}` : `Abonar orden #${activeOrderId || ''}`}
+                {/* MODAL: RESUMEN Y PAGO DE ORDEN */}
+                <OrderPaymentDialog
                     visible={showOrderSummary}
-                    style={{ width: '85vw', maxWidth: '1200px' }}
-                    modal
-                    onHide={() => {
-                        setShowOrderSummary(false);
-                        setActiveOrderId(null);
-                        setPaymentType('unico');
-                        setAdvanceAmount(0);
-                        setOrderNotes('');
-                    }}
-                >
-                    <div className="grid">
-                        {/* COLUMNA IZQUIERDA: DETALLES Y ARCHIVOS */}
-                        <div className="col-12 lg:col-8">
-                            <div className="surface-card p-4 border-round shadow-1 h-full">
-                                <h3 className="mb-4 text-700 text-xl font-bold flex align-items-center gap-2">
-                                    <i className="pi pi-list text-primary"></i>
-                                    Detalle de la Orden
-                                </h3>
-                                <DataTable
-                                    value={activeOrderItems}
-                                    responsiveLayout="scroll"
-                                    size="small"
-                                    showGridlines
-                                    stripedRows
-                                    emptyMessage={
-                                        <div className="text-center p-4">
-                                            <i className="pi pi-wallet text-4xl text-green-500 mb-2"></i>
-                                            <p className="font-bold text-xl m-0">Modo de Cobranza Rápida</p>
-                                            <p className="text-gray-600">Registrando pago para el saldo pendiente.</p>
-                                        </div>
-                                    }
-                                >
-                                    <Column field="descripcion" header="Producto" />
-                                    <Column field="cantidad" header="Cant." className="text-center" style={{ width: '10%' }} />
-                                    <Column field="costo" header="Precio" body={(d) => `$${d.costo}`} className="text-right" style={{ width: '20%' }} />
-                                    <Column field="importe" header="Total" body={(d) => `$${d.importe.toFixed(2)}`} className="text-right font-bold" style={{ width: '20%' }} />
-                                </DataTable>
+                    onHide={() => setShowOrderSummary(false)}
+                    orderId={activeOrderId}
+                    items={activeOrderItems}
+                    total={activeOrderTotal}
+                    paidAmount={activeOrderPaid}
+                    paymentConditions={paymentConditions}
+                    isSubmitting={isSubmitting}
+                    onConfirmPayment={handleProcessPayment}
+                    currentConditionId={activeOrderCondition}
+                />
 
-                                <div className="flex justify-content-end mt-5">
-                                    <div className="text-right p-3 border-round surface-50 border-1 border-200">
-                                        <span className="text-xl text-600 mr-3">
-                                            {activeOrderItems.length > 0 ? "Total de la Orden:" : "Total de la Orden:"}
-                                        </span>
-                                        <span className="text-3xl font-bold text-primary">${activeOrderTotal.toFixed(2)}</span>
-                                    </div>
-                                </div>
-                                <Divider />
-
-                                <div className="mb-4">
-                                    <label className="font-bold block mb-2 text-700">
-                                        <i className="pi pi-cloud-upload mr-2"></i>
-                                        Archivos / Diseño
-                                    </label>
-                                    <FileUpload
-                                        name="demo[]"
-                                        mode="advanced"
-                                        accept="image/*,application/pdf"
-                                        maxFileSize={10000000}
-                                        chooseLabel="Seleccionar"
-                                        uploadLabel="Guardar"
-                                        cancelLabel="Cancelar"
-                                        customUpload
-                                        auto={false}
-                                        onSelect={(e) => {
-                                            if (e.files && e.files.length > 0) {
-                                                setSelectedFile(e.files[0]);
-                                            }
-                                        }}
-                                        onRemove={() => setSelectedFile(null)}
-                                        onClear={() => setSelectedFile(null)}
-                                        emptyTemplate={<p className="m-0 p-3 text-center text-500">Arrastra archivos aquí.</p>}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* COLUMNA DERECHA: LÓGICA FINANCIERA */}
-                        <div className="col-12 lg:col-4">
-                            <div className="surface-card p-4 border-round shadow-1 h-full flex flex-column">
-                                <h3 className="mb-3 text-700 text-xl font-bold">Método de Pago</h3>
-                                <div className="flex flex-column gap-2 mb-4">
-                                    {/* LIQUIDAR: Bloqueará el input y pone el saldo restante */}
-                                    <Button
-                                        label="Pago Total"
-                                        icon="pi pi-check-circle"
-                                        className={`p-button-sm text-left ${paymentType === 'unico' ? 'p-button-primary' : 'p-button-outlined p-button-secondary'}`}
-                                        onClick={() => {
-                                            setPaymentType('unico');
-                                            const saldo = (activeOrderTotal || 0) - (activeOrderPaid || 0);
-                                            setAdvanceAmount(Number(saldo.toFixed(2)));
-                                        }}
-                                    />
-                                    {/* ANTICIPO: Siempre 20% del total (Fijo) */}
-                                    <Button
-                                        label={`Anticipo (20%)`}
-                                        icon="pi pi-wallet"
-                                        className={`p-button-sm text-left ${paymentType === 'anticipo' ? 'p-button-primary' : 'p-button-outlined p-button-secondary'}`}
-                                        onClick={() => {
-                                            setPaymentType('anticipo');
-                                            const anticipo = (activeOrderTotal || 0) * 0.20;
-                                            setAdvanceAmount(Number(anticipo.toFixed(2)));
-                                        }}
-                                    />
-                                    {/* PLAZOS */}
-                                    <Button
-                                        label={`Esquema de Plazos (${activeOrderTotal >= 3000 ? '3' : '2'} Pagos)`}
-                                        icon="pi pi-calendar"
-                                        className={`p-button-sm text-left ${paymentType === 'plazos' ? 'p-button-primary' : 'p-button-outlined p-button-secondary'}`}
-                                        onClick={() => {
-                                            setPaymentType('plazos');
-                                            const divisor = activeOrderTotal >= 3000 ? 3 : 2;
-                                            const letra = (activeOrderTotal || 0) / divisor;
-                                            const saldo = (activeOrderTotal || 0) - (activeOrderPaid || 0);
-                                            const montoFinal = letra > saldo ? saldo : letra;
-                                            setAdvanceAmount(Number(montoFinal.toFixed(2)));
-                                        }}
-                                        disabled={(activeOrderTotal || 0) < 1000}
-                                    />
-                                </div>
-                                <Divider />
-                                {/* Input del Monto */}
-                                <div className="mb-2">
-                                    <label className="font-bold block mb-2 text-700">Monto a cobrar hoy</label>
-                                    <div className="p-inputgroup">
-                                        <span className="p-inputgroup-addon text-green-600 font-bold">$</span>
-                                        <InputNumber
-                                            value={advanceAmount}
-                                            onValueChange={(e) => setAdvanceAmount(e.value ?? 0)}
-                                            placeholder="0.00"
-                                            mode="currency"
-                                            currency="MXN"
-                                            locale="es-MX"
-                                            minFractionDigits={2}
-                                            min={0}
-                                            inputStyle={{ fontWeight: 'bold', fontSize: '1.2rem' }}
-                                            disabled={paymentType === 'unico'}
-                                            className={advanceAmount > (activeOrderTotal - activeOrderPaid) ? 'p-invalid' : ''}
-                                        />
-                                    </div>
-                                    {/* Mensajes de Validación / Ayuda */}
-                                    <div className="mt-1">
-                                        {/* AVISO: Si escribe más de lo que debe */}
-                                        {advanceAmount > (activeOrderTotal - activeOrderPaid + 0.1) && (
-                                            <div className="text-red-500 text-xs font-bold animate-fade-in">
-                                                <i className="pi pi-times-circle mr-1"></i>
-                                                El monto excede el saldo pendiente (${(activeOrderTotal - activeOrderPaid).toFixed(2)})
-                                            </div>
-                                        )}
-                                        {/* AVISO: Mínimo sugerido para anticipos */}
-                                        {paymentType === 'anticipo' && activeOrderTotal > 0 && advanceAmount < (activeOrderTotal * 0.20) && (
-                                            <div className="text-orange-500 text-xs flex align-items-center gap-1">
-                                                <i className="pi pi-info-circle"></i>
-                                                <span>Sugerido 20%: ${(activeOrderTotal * 0.20).toFixed(2)}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Boleta de Saldos*/}
-                                <div className="surface-100 p-3 border-round mb-4 mt-2 text-sm">
-                                    <div className="flex justify-content-between mb-1">
-                                        <span className="text-600">Total Orden:</span>
-                                        <span className="font-semibold">${activeOrderTotal.toFixed(2)}</span>
-                                    </div>
-                                    {activeOrderPaid > 0 && (
-                                        <div className="flex justify-content-between mb-1">
-                                            <span className="text-600">Abonado anteriormente:</span>
-                                            <span className="font-semibold text-green-600">-${activeOrderPaid.toFixed(2)}</span>
-                                        </div>
-                                    )}
-                                    <div className="flex justify-content-between mb-2 pt-2 border-top-1 border-300">
-                                        <span className="text-800 font-bold">Saldo Pendiente:</span>
-                                        <span className="font-bold text-900">${(activeOrderTotal - activeOrderPaid).toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-content-between mb-2 align-items-center bg-white p-2 border-round">
-                                        <span className="text-primary font-bold">Abonar Hoy:</span>
-                                        <span className="font-bold text-primary text-lg">-${advanceAmount.toFixed(2)}</span>
-                                    </div>
-                                    <div className="border-top-1 surface-border my-2"></div>
-                                    <div className="flex justify-content-between align-items-center">
-                                        <span className="text-900 font-medium">Restante Final:</span>
-                                        <span className={`text-lg font-bold ${(activeOrderTotal - activeOrderPaid - advanceAmount) <= 0.1
-                                            ? 'text-green-500'
-                                            : 'text-red-500'
-                                            }`}>
-                                            ${Math.max(0, activeOrderTotal - activeOrderPaid - advanceAmount).toFixed(2)}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <InputText
-                                    className="w-full mb-4"
-                                    value={orderNotes}
-                                    onChange={(e) => setOrderNotes(e.target.value)}
-                                    placeholder="Referencia de pago / Notas..."
-                                />
-                                <Button
-                                    label="Confirmar Pago"
-                                    icon="pi pi-check-circle"
-                                    size="large"
-                                    className="mt-auto w-full shadow-3"
-                                    onClick={handleConfirmOrder}
-                                    disabled={
-                                        !advanceAmount ||
-                                        advanceAmount <= 0 ||
-                                        advanceAmount > (activeOrderTotal - activeOrderPaid + 0.5)
-                                    }
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </Dialog>
-
+                {/* MODAL: SELECCION DE CLIENTE*/}
                 <ClientSearchDialog
                     visible={showAssignClientDialog}
                     clients={clients}
@@ -1109,42 +649,24 @@ const Counter = () => {
                     onSelect={handleClientSelected}
                 />
 
+                {/* MODAL: NUEVO CLIENTE*/}
                 <ClientFormDialog
                     visible={showAddNewClientDialog}
                     onHide={() => setShowAddNewClientDialog(false)}
                     onSuccess={handleClientCreated}
                 />
 
-                <Dialog
-                    header={pendingProduct?.descripcion}
+                {/* MODAL: AGREGAR CANTIDAD*/}
+                <ProductQuantityDialog
                     visible={showQuantityDialog}
-                    style={{ width: '30vw', minWidth: '350px' }}
-                    modal
+                    product={pendingProduct}
                     onHide={() => {
                         setShowQuantityDialog(false);
                         setPendingProduct(null);
                     }}
-                    footer={() => (
-                        <div>
-                            <Button label="Cancelar" icon="pi pi-times" onClick={() => setShowQuantityDialog(false)} className="p-button-text" />
-                            <Button label="Agregar" icon="pi pi-check" onClick={handleAddItem} autoFocus />
-                        </div>
-                    )}
-                >
-                    <div className="field p-fluid">
-                        <label htmlFor="cantidad"># Cantidad</label>
-                        <InputNumber
-                            id="cantidad"
-                            value={pendingQuantity}
-                            onValueChange={(e: InputNumberValueChangeEvent) => setPendingQuantity(e.value ?? 1)}
-                            mode="decimal"
-                            minFractionDigits={0}
-                            min={pendingProduct?.tirajeMinimo ?? 1}
-                            showButtons
-                        />
-                        <small>Tiraje mínimo: {pendingProduct?.tirajeMinimo}</small>
-                    </div>
-                </Dialog>
+                    onConfirm={handleAddProductFromModal}
+                />
+
             </div>
         </>
     );

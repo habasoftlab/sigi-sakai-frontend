@@ -43,18 +43,13 @@ const ListOrderPage = () => {
                 const dMap: Record<number, string> = {};
                 designers.forEach((d: any) => { dMap[d.idUsuario || d.id] = d.nombre; });
                 setDesignerMap(dMap);
-
                 const cMap: Record<number, string> = {};
                 clients.forEach((c: any) => { if (c.id) cMap[c.id] = c.nombre; });
                 setClientMap(cMap);
-
                 const sMap: Record<number, string> = {};
                 statuses.forEach((s: any) => { sMap[s.idEstatus] = s.descripcion; });
                 setStatusMap(sMap);
-
-                // Carga inicial de datos
                 await loadOrdersLazy(0, rows, dMap, cMap, sMap);
-
             } catch (error) {
                 console.error("Error inicializando:", error);
                 toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Fallo al cargar catálogos' });
@@ -62,7 +57,6 @@ const ListOrderPage = () => {
                 setLoading(false);
             }
         };
-
         initData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -78,15 +72,14 @@ const ListOrderPage = () => {
         try {
             const response = await OrderService.getOrdenesActivas(pageIndex, pageSize);
             const listaOrdenes = response.content || response;
-            const totalEnBackend = response.totalElements || 0;
+            const totalEnBackend = response.page?.totalElements
+                || response.totalElements
+                || listaOrdenes.length;
             const ordenesReales = listaOrdenes;
-
             const dMapToUse = currentDMap || designerMap;
             const cMapToUse = currentCMap || clientMap;
             const sMapToUse = currentSMap || statusMap;
-
             const treeData = transformToTree(ordenesReales, dMapToUse, cMapToUse, sMapToUse);
-
             setOrderTree(treeData);
             setTotalRecords(totalEnBackend);
         } catch (error) {
@@ -111,13 +104,11 @@ const ListOrderPage = () => {
         sMap: Record<number, string>
     ) => {
         const groups = new Map<string, any[]>();
-
         items.forEach(item => {
             let designerLabel = 'Sin Asignar / Mostrador';
             if (item.idUsuarioDisenador) {
                 designerLabel = dMap[item.idUsuarioDisenador] || `Diseñador ID: ${item.idUsuarioDisenador}`;
             }
-
             if (!groups.has(designerLabel)) {
                 groups.set(designerLabel, []);
             }
@@ -126,7 +117,6 @@ const ListOrderPage = () => {
 
         return Array.from(groups.entries()).map(([designerName, childrenItems], index) => {
             const totalDesigner = childrenItems.reduce((acc, curr) => acc + (curr.montoTotal || 0), 0);
-
             return {
                 key: `group-${index}`,
                 data: {
@@ -139,9 +129,7 @@ const ListOrderPage = () => {
                 },
                 children: childrenItems.map(item => {
                     let clientLabel = item.clienteNombre || (item.idCliente ? (cMap[item.idCliente] || `Cliente #${item.idCliente}`) : 'Público General');
-
                     const statusLabel = sMap[item.idEstatusActual] || `Estatus ${item.idEstatusActual}`;
-
                     return {
                         key: item.idOrden.toString(),
                         data: {
@@ -160,33 +148,51 @@ const ListOrderPage = () => {
         });
     };
 
-    const getSeverity = (statusId: number): "success" | "info" | "warning" | "danger" | null => {
+    const getStatusStyle = (statusId: number) => {
         switch (statusId) {
-            case 1: return 'warning';
-            case 2: return 'info';
+            case 1:
+                return { bg: '#FFC107', color: '#000000', icon: 'pi pi-file' };
+            case 2:
+                return { bg: '#2196F3', color: '#ffffff', icon: 'pi pi-dollar' };
             case 3:
-            case 4: return 'info';
-            case 5: return 'warning';
-            case 6: return 'success';
+            case 4:
             case 7:
-            case 8: return 'warning';
-            case 9: return 'success';
-            case 10: return 'danger';
-            case 11: return 'danger';
-            case 12: return null;
-            default: return 'info';
+                return { bg: '#9C27B0', color: '#ffffff', icon: 'pi pi-palette' };
+            case 8:
+                return { bg: '#673AB7', color: '#ffffff', icon: 'pi pi-eye' };
+            case 9:
+                return { bg: '#4CAF50', color: '#ffffff', icon: 'pi pi-thumbs-up' };
+            case 10:
+                return { bg: '#F44336', color: '#ffffff', icon: 'pi pi-thumbs-down' };
+            case 5:
+                return { bg: '#FF9800', color: '#ffffff', icon: 'pi pi-print' };
+            case 6:
+                return { bg: '#009688', color: '#ffffff', icon: 'pi pi-box' };
+            case 12:
+                return { bg: '#607D8B', color: '#ffffff', icon: 'pi pi-check-circle' };
+            case 11:
+                return { bg: '#D32F2F', color: '#ffffff', icon: 'pi pi-times-circle' };
+            default:
+                return { bg: '#9E9E9E', color: '#ffffff', icon: 'pi pi-cog' };
         }
     };
 
     const statusBodyTemplate = (node: TreeNode) => {
         if (node.data.isGroup) return null;
-
+        const style = getStatusStyle(node.data.idEstatus);
         return (
             <Tag
-                severity={getSeverity(node.data.idEstatus)}
                 value={node.data.estatusNombre}
-                icon="pi pi-cog"
-                style={{ width: '100%', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                icon={style.icon}
+                style={{
+                    backgroundColor: style.bg,
+                    color: style.color,
+                    width: '100%',
+                    maxWidth: '200px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                }}
             />
         );
     };
@@ -202,7 +208,7 @@ const ListOrderPage = () => {
         if (node.data.isGroup) return null;
         return (
             <Link href={`/timeline?id=${node.data.idOrden}`} legacyBehavior>
-                <Button icon="pi pi-eye" rounded text severity="secondary" tooltip="Ver Detalles / Seguimiento" />
+                <Button icon="pi pi-eye" rounded text severity="secondary" tooltip="Seguimiento" />
             </Link>
         );
     };
