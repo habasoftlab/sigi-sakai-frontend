@@ -1,121 +1,175 @@
 'use client';
-
-import React from 'react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { Card } from 'primereact/card'; // <-- LÍNEA CORREGIDA
+import React, { useEffect, useState, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Card } from 'primereact/card';
 import { Timeline } from 'primereact/timeline';
+import { Button } from 'primereact/button';
+import { Toast } from 'primereact/toast';
+import { OrderService } from '@/app/service/orderService';
 
-
-// 1. Definimos una interfaz para nuestros eventos de orden
-interface OrderEvent {
-    status: string;
-    date: string;
-    icon: string;
-    color: string;
-    description: string;
+interface HistorialItem {
+    fecha: string;
+    estatus: string;
+    usuario: string;
+    claveEstatus: string;
 }
 
-/**
- * Página de Timeline para una Orden Específica (basado en Pág. 11)
- */
+interface TimelineEvent extends HistorialItem {
+    icon: string;
+    color: string;
+}
+
 const OrderTimelinePage = () => {
-
+    const router = useRouter();
     const searchParams = useSearchParams();
-    const orderId = searchParams.get('id'); // <-- Obtiene el ID (ej. "ORD-001")
+    const orderId = searchParams.get('id');
 
-    // 2. Reemplazamos los datos de demo con los datos de tu mockup
-    const orderEvents: OrderEvent[] = [
-        {
-            status: 'Orden iniciada',
-            date: '15/10/2025 10:30',
-            icon: 'pi pi-check', // Icono de tu mockup
-            color: '#4CAF50', // Verde
-            description: 'El cliente ha confirmado el pago y la orden ha sido creada en el sistema.'
-        },
-        {
-            status: 'Diseño enviado',
-            date: '16/10/2025 14:00',
-            icon: 'pi pi-send', // Icono de tu mockup
-            color: '#2196F3', // Azul
-            description: 'El diseñador asignado ha enviado la propuesta de diseño al cliente para su revisión.'
-        },
-        {
-            status: 'Diseño aprobado',
-            date: '17/10/2025 09:15',
-            icon: 'pi pi-check-circle', // Icono de tu mockup
-            color: '#4CAF50', // Verde
-            description: 'El cliente revisó y aprobó la propuesta de diseño. La orden está lista para producción.'
-        },
-        {
-            status: 'En impresión',
-            date: '17/10/2025 11:00',
-            icon: 'pi pi-print', // Icono de tu mockup
-            color: '#FF9800', // Naranja
-            description: 'La orden ha entrado a la cola de impresión y se está produciendo.'
-        },
-        {
-            status: 'Listo para entrega',
-            date: '18/10/2025 16:00',
-            icon: 'pi pi-check-square', // Icono de tu mockup
-            color: '#607D8B', // Gris
-            description: 'El producto impreso está terminado y listo para ser recogido o enviado.'
+    const [events, setEvents] = useState<TimelineEvent[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [backPath, setBackPath] = useState('/');
+
+    const toast = useRef<Toast>(null);
+
+    useEffect(() => {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            const rolUsuario = (user.rol || '').toLowerCase();
+            const rolesDirectivos = ['admin', 'contadora', 'contador', 'dueño', 'dueno'];
+            if (rolesDirectivos.some(r => rolUsuario.includes(r))) {
+                setBackPath('/');
+            }
+            else {
+                setBackPath('/listorder');
+            }
         }
-    ];
+    }, []);
 
-    // 3. Contenido de la Card (simplificado)
-    //    Removemos la imagen y el botón "Read more" para que coincida con el mockup
-    const customizedContent = (item: OrderEvent) => {
+    useEffect(() => {
+        if (!orderId) return;
+        const fetchHistory = async () => {
+            try {
+                const data = await OrderService.getHistorial(Number(orderId));
+                const formattedEvents = data.map((item: HistorialItem) => ({
+                    ...item,
+                    ...getStyleByStatus(item.claveEstatus)
+                }));
+                setEvents(formattedEvents);
+            } catch (error) {
+                console.error(error);
+                toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar el historial' });
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchHistory();
+    }, [orderId]);
+
+    const getStyleByStatus = (clave: string) => {
+        switch (clave) {
+            case 'COT_INICIADA':
+                return { icon: 'pi pi-file', color: '#FFC107' };
+            case 'COT_PAGADA':
+                return { icon: 'pi pi-dollar', color: '#2196F3' };
+            case 'ORD_EN_DISENO_CON_INSUMOS':
+            case 'ORD_EN_DISENO_SIN_INSUMOS':
+                return { icon: 'pi pi-palette', color: '#720a85ff' };
+            case 'DIS_EN_PROCESO':
+                return { icon: 'pi pi-file-edit', color: '#9C27B0' };
+            case 'DIS_EN_REVISION_CLIENTE':
+                return { icon: 'pi pi-eye', color: '#673AB7' };
+            case 'DIS_DISENO_APROBADO':
+                return { icon: 'pi pi-thumbs-up', color: '#4CAF50' };
+            case 'DIS_DISENO_RECHAZADO':
+                return { icon: 'pi pi-thumbs-down', color: '#F44336' };
+            case 'ORD_EN_IMPRESION':
+                return { icon: 'pi pi-print', color: '#FF9800' };
+            case 'ORD_LISTA_ENTREGA':
+                return { icon: 'pi pi-verified', color: '#009688' };
+            case 'ORD_ENTREGADA':
+                return { icon: 'pi pi-check-circle', color: '#607D8B' };
+            case 'CANCELADA':
+                return { icon: 'pi pi-times-circle', color: '#D32F2F' };
+            default:
+                return { icon: 'pi pi-cog', color: '#9E9E9E' };
+        }
+    };
+
+    const customizedContent = (item: TimelineEvent) => {
         return (
-            <Card title={item.status} subTitle={item.date}>
-                <p>{item.description}</p>
+            <Card
+                title={item.estatus}
+                subTitle={item.fecha}
+                className="shadow-2"
+                pt={{
+                    title: { className: 'text-base md:text-lg font-bold mb-1' },
+                    subTitle: { className: 'text-sm text-gray-500 mb-0' },
+                    content: { className: 'p-0' },
+                    body: { className: 'p-3' }
+                }}
+            >
+                {item.usuario && (
+                    <div className="flex align-items-center gap-2 mt-2 text-sm text-700 bg-100 p-2 border-round">
+                        <i className="pi pi-user text-primary"></i>
+                        <span>Atendió: <span className="font-semibold">{item.usuario}</span></span>
+                    </div>
+                )}
             </Card>
         );
     };
 
-    // 4. Marcador del Timeline (tu función original estaba bien)
-    const customizedMarker = (item: OrderEvent) => {
+    const customizedMarker = (item: TimelineEvent) => {
         return (
             <span
-                className="custom-marker shadow-1"
+                className="flex align-items-center justify-content-center shadow-2"
                 style={{
                     backgroundColor: item.color,
-                    borderRadius: '50%', // <-- 1. Hace el marcador redondo
-                    width: '3rem',         // <-- 2. Aumenta el tamaño del marcador
-                    height: '3rem',        // <-- 2. Aumenta el tamaño del marcador
-
-                    // --- LÍNEAS AÑADIDAS PARA FORZAR EL CENTRADO ---
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                    borderRadius: '50%',
+                    width: '3rem',
+                    height: '3rem',
+                    color: '#ffffff'
                 }}
             >
-                <i className={item.icon} style={{ fontSize: '1.5rem' }}></i> {/* <-- 3. Aumenta el tamaño del ícono */}
+                <i className={item.icon} style={{ fontSize: '1.2rem' }}></i>
             </span>
         );
     };
 
     return (
         <div className="card">
-            <div className="flex justify-content-between align-items-center">
-                <h2>Orden No. {orderId || '***'}</h2>
-                <Link href="/" passHref legacyBehavior>
-                    <a className="p-button p-component p-button-text">
-                        <i className="pi pi-arrow-left p-button-icon p-button-icon-left"></i>
-                        <span className="p-button-label">Regresar</span>
-                    </a>
-                </Link>
+            <Toast ref={toast} />
+
+            <div className="flex justify-content-between align-items-center mb-5">
+                <div>
+                    <h2 className="m-0 text-900">Seguimiento de Orden</h2>
+                    <span className="text-gray-500">Historial de movimientos para la orden #{orderId || '...'}</span>
+                </div>
+                <Button
+                    label="Regresar"
+                    icon="pi pi-arrow-left"
+                    text
+                    onClick={() => router.push(backPath)}
+                />
             </div>
 
-            <div className="timeline-demo mt-4">
+            {loading ? (
+                <div className="flex justify-content-center py-6">
+                    <i className="pi pi-spin pi-spinner text-4xl text-primary"></i>
+                </div>
+            ) : events.length > 0 ? (
                 <Timeline
-                    value={orderEvents}
+                    value={events}
                     align="alternate"
                     className="customized-timeline"
                     marker={customizedMarker}
                     content={customizedContent}
                 />
-            </div>
+            ) : (
+                <div className="text-center p-5 border-1 border-dashed border-300 border-round">
+                    <i className="pi pi-info-circle text-4xl text-gray-400 mb-3"></i>
+                    <p className="text-gray-600 m-0">No hay historial registrado para esta orden.</p>
+                </div>
+            )}
         </div>
     );
 };
