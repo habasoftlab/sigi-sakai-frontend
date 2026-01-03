@@ -45,28 +45,35 @@ const WorkshopListPage = () => {
             ]);
             const rawOrders = ordersResponse.content || ordersResponse || [];
 
+            const activeOrdersOnly = rawOrders.filter((order: any) => order.idEstatusActual !== 12);
             const clientMap = new Map<number, string>();
             clientsData.forEach((client) => {
                 if (client.id) clientMap.set(client.id, client.nombre);
             });
-
-            const processedOrders = rawOrders.map((order: any) => {
+            const processedOrders = activeOrdersOnly.map((order: any) => {
                 const resolvedClientName = clientMap.get(order.idCliente) || `Cliente #${order.idCliente}`;
+
                 let status: WorkshopStatus = 'pending';
-                if (order.insumosVerificados || order.idEstatusActual === 3) {
+
+                // --- LÓGICA DE ESTATUS ---
+                // 1. Si ya tiene insumos verificados (TRUE), siempre es VERDE.
+                if (order.insumosVerificados) {
                     status = 'confirmed';
                 }
-                else if (order.idEstatusActual === 4) {
-                    status = 'delayed';
-                }
-                else {
+                // 2. Si es una orden nueva (Estatus 2) y no tiene insumos, es AZUL (Pendiente de revisar).
+                else if (order.idEstatusActual === 2) {
                     status = 'pending';
+                }
+                // 3. Si ya avanzó (Estatus 4, 7, 8, 9) y NO tiene insumos, es ROJO (Retrasado/Faltante).
+                else {
+                    status = 'delayed';
                 }
 
                 const hasFile = order.rutaArchivo && order.rutaArchivo !== 'Pendiente';
-                const hasSupplies = status === 'confirmed';
                 const isStatusReady = order.idEstatusActual === 9 || order.idEstatusActual === 5;
-                const canPrint = hasFile && hasSupplies && isStatusReady;
+                const hasSuppliesVerified = order.insumosVerificados === true;
+                const canPrint = hasFile && hasSuppliesVerified && isStatusReady;
+
                 return {
                     ...order,
                     clienteNombre: resolvedClientName,
@@ -74,6 +81,7 @@ const WorkshopListPage = () => {
                     canPrint: canPrint
                 };
             });
+
             setOrders(processedOrders);
         } catch (error) {
             console.error("Error cargando datos de taller", error);
@@ -94,27 +102,41 @@ const WorkshopListPage = () => {
 
         switch (rowData.workshopStatus) {
             case 'confirmed':
-                icon = 'pi pi-check-square';
-                colorClass = 'text-green-500';
-                tooltip = 'Insumos verificados';
+                icon = 'pi pi-check-circle';
+                colorClass = 'text-green-500 font-bold';
+                tooltip = 'Insumos verificados y listos';
                 break;
             case 'delayed':
                 icon = 'pi pi-exclamation-triangle';
                 colorClass = 'text-red-500';
-                tooltip = 'Faltan insumos (Estatus 4)';
+                tooltip = 'Faltan insumos en espera de compras';
                 break;
             case 'pending':
             default:
                 icon = 'pi pi-box';
                 colorClass = 'text-blue-500';
-                tooltip = 'Pendiente de revisión';
+                tooltip = 'Pendiente de revisión (Clic para verificar)';
                 break;
+        }
+
+        if (rowData.workshopStatus === 'confirmed') {
+            return (
+                <div className="flex align-items-center justify-content-center">
+                    <div
+                        className="p-2 border-circle surface-100 flex align-items-center justify-content-center"
+                        style={{ width: '3rem', height: '3rem', cursor: 'default' }}
+                        title={tooltip}
+                    >
+                        <i className={`${icon} ${colorClass}`} style={{ fontSize: '1.5rem' }}></i>
+                    </div>
+                </div>
+            );
         }
 
         return (
             <div className="flex align-items-center justify-content-center">
                 <Link href={`/workshopsupplies?id=${rowData.idOrden}`} passHref legacyBehavior>
-                    <a className="p-button p-component p-button-text p-button-rounded p-button-plain no-underline hover:surface-100 border-circle w-3rem h-3rem flex align-items-center justify-content-center transition-colors transition-duration-200" title={tooltip}>
+                    <a className="p-button p-component p-button-text p-button-rounded p-button-plain no-underline hover:surface-200 border-circle w-3rem h-3rem flex align-items-center justify-content-center transition-colors transition-duration-200" title={tooltip}>
                         <i className={`${icon} ${colorClass}`} style={{ fontSize: '1.5rem' }}></i>
                     </a>
                 </Link>
@@ -129,7 +151,7 @@ const WorkshopListPage = () => {
 
         if (!canPrint) {
             if (!rowData.rutaArchivo || rowData.rutaArchivo === 'Pendiente') tooltip = "Falta archivo de diseño";
-            else if (rowData.workshopStatus !== 'confirmed') tooltip = "Faltan insumos";
+            else if (!rowData.insumosVerificados) tooltip = "Faltan insumos";
             else if (rowData.idEstatusActual !== 9 && rowData.idEstatusActual !== 5) tooltip = "Diseño no aprobado por cliente aún";
         }
 
@@ -177,7 +199,7 @@ const WorkshopListPage = () => {
                             <i className="pi pi-box mr-2 text-blue-500"></i>Por revisar insumos
                         </span>
                         <span className="px-3 py-1 border-round surface-100 bg-green-100 text-green-700 font-bold text-sm flex align-items-center">
-                            <i className="pi pi-check-square mr-2 text-green-500"></i>Insumos listos
+                            <i className="pi pi-check-circle mr-2 text-green-500"></i>Insumos listos
                         </span>
                         <span className="px-3 py-1 border-round surface-100 bg-red-100 text-red-700 font-bold text-sm flex align-items-center">
                             <i className="pi pi-calendar-times mr-2 text-red-500"></i>En espera de insumos
@@ -197,7 +219,6 @@ const WorkshopListPage = () => {
                         responsiveLayout="scroll"
                         emptyMessage="No hay órdenes pendientes en taller."
                         className="p-datatable-sm"
-                        rowClassName={(data) => data.workshopStatus === 'delayed' ? 'bg-red-50' : ''}
                     >
                         <Column field="idOrden" header="Folio" sortable style={{ width: '10%' }} className="font-bold" />
                         <Column

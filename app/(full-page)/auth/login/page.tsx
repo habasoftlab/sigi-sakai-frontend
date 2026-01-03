@@ -26,7 +26,7 @@ const LoginPage = () => {
         { 'p-input-filled': layoutConfig.inputStyle === 'filled' }
     );
 
-    const handleLogin = async () => {
+const handleLogin = async () => {
         if (!email || !password) {
             toast.current?.show({ severity: 'warn', summary: 'Atención', detail: 'Ingresa correo y contraseña' });
             return;
@@ -37,6 +37,9 @@ const LoginPage = () => {
         try {
             const credentials: LoginRequest = { email, password };
             const data = await AuthService.login(credentials);
+            if (data.status === 401 || data.error) {
+                throw new Error(data.message || 'Credenciales inválidas');
+            }
             if (data.token) {
                 localStorage.setItem('token', data.token);
                 const userInfo = {
@@ -51,30 +54,20 @@ const LoginPage = () => {
                     summary: 'Bienvenido',
                     detail: `Iniciando como ${data.rol}...`
                 });
+                
                 setTimeout(() => {
                     const permisos = data.permisos || [];
-                    if (permisos.includes('VER_DASHBOARD')) {
-                        router.push('/');
-                    }
-                    else if (permisos.includes('VER_PANEL_DISENO')) {
-                        router.push('/designerlist');
-                    }
-                    else if (permisos.includes('VER_PANEL_TALLER')) {
-                        router.push('/workshoplist');
-                    }
-                    else if (permisos.includes('GESTIONAR_COTIZACIONES')) {
-                        router.push('/counter');
-                    }
-                    else if (permisos.includes('GESTIONAR_ORDENES')) {
-                        router.push('/listorder');
-                    }
-                    else {
-                        router.push('/pages/access');
-                    }
+                    if (permisos.includes('VER_DASHBOARD')) router.push('/');
+                    else if (permisos.includes('VER_PANEL_DISENO')) router.push('/designerlist');
+                    else if (permisos.includes('VER_PANEL_TALLER')) router.push('/workshoplist');
+                    else if (permisos.includes('GESTIONAR_COTIZACIONES')) router.push('/counter');
+                    else if (permisos.includes('GESTIONAR_ORDENES')) router.push('/listorder');
+                    else router.push('/pages/access');
                 }, 700);
             } else {
-                throw new Error('La respuesta del servidor no contiene un token válido.');
+                throw new Error('No se recibió respuesta válida del servidor.');
             }
+
         } catch (error: any) {
             console.error("Error en Login:", error);
             toast.current?.show({

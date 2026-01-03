@@ -13,9 +13,21 @@ export const AuthService = {
             body: JSON.stringify(credentials)
         });
         if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || 'Error en la autenticación');
+            try {
+                const errorData = await response.json();
+                if (errorData.message) {
+                    throw new Error(errorData.message);
+                }
+                throw new Error(errorData.error || 'Error en la autenticación');
+            } catch (jsonError: any) {
+                if (jsonError.message && jsonError.message !== 'Unexpected token') {
+                    throw jsonError;
+                }
+                const errorText = await response.text().catch(() => '');
+                throw new Error(errorText || 'Ocurrió un error desconocido');
+            }
         }
+
         return await response.json();
     },
 

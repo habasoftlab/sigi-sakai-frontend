@@ -15,6 +15,7 @@ export interface OrdenCabecera {
     idCondicionPago: number;
     rutaArchivo: string;
     insumosVerificados: boolean;
+    notasDiseno?: string | null;
 }
 
 export interface NuevaOrdenRequest {
