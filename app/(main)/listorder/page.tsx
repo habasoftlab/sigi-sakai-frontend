@@ -123,7 +123,7 @@ const ListOrderPage = () => {
         const currentUserId = userStr ? JSON.parse(userStr).idUsuario : null;
 
         if (!currentUserId) return;
-        
+
         setIsCancelling(true);
         try {
             await OrderService.cancelarOrden(selectedOrderToCancel, selectedReason, currentUserId);
@@ -158,7 +158,7 @@ const ListOrderPage = () => {
                 idEstatusDestino: 12,
                 clienteAprobo: true
             });
-            
+
             toast.current?.show({ severity: 'success', summary: 'Entregada', detail: 'La orden se ha marcado como entregada correctamente.' });
             setShowDeliveryDialog(false);
             loadOrdersLazy(first / rows, rows);
@@ -253,7 +253,7 @@ const ListOrderPage = () => {
     // --- TEMPLATE DE ACCIONES ---
     const actionTemplate = (node: TreeNode) => {
         if (node.data.isGroup) return null;
-        
+
         const status = node.data.idEstatus;
         const isReadyForDelivery = status === 6;
         const isFinished = status === 12 || status === 11;
@@ -369,7 +369,7 @@ const ListOrderPage = () => {
                             <span>Acción irreversible</span>
                         </div>
                         <p className="m-0 text-sm text-red-700">
-                            La orden pasará a estar <strong>"Cancelada"</strong>.
+                            La orden pasará a estar <strong>&quot;Cancelada&quot;</strong>.
                             <strong> No hay reembolsos.</strong>
                         </p>
                     </div>
@@ -429,7 +429,7 @@ const ListOrderPage = () => {
                         ¿Confirmas que el cliente ha recibido sus productos satisfactoriamente?
                     </p>
                     <small className="text-500 block mt-2">
-                        La orden pasará al estatus "Entregada" y se archivará como completada.
+                        La orden pasará al estatus &quot;Entregada&quot; y se archivará como completada.
                     </small>
                 </div>
             </Dialog>
