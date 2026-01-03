@@ -1,6 +1,7 @@
 import { NuevaOrdenRequest, AvanzarEstatusRequest } from '@/app/types/orders';
 
 const ORDERS_API = process.env.NEXT_PUBLIC_ORDERS_API_URL;
+
 const IMAGE_API = process.env.NEXT_PUBLIC_IMAGE_API_URL;
 
 export const OrderService = {
@@ -12,6 +13,23 @@ export const OrderService = {
             body: JSON.stringify(data)
         });
         if (!res.ok) throw new Error('Error al crear la orden');
+        return await res.json();
+    },
+
+    async cancelarOrden(idOrden: number, idRazon: number, idUsuario: number) {
+        const res = await fetch(`${ORDERS_API}/ordenes/${idOrden}/cancelar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                idRazon: idRazon,
+                idUsuario: idUsuario
+            })
+        });
+
+        if (!res.ok) {
+            const errorBody = await res.json().catch(() => ({}));
+            throw new Error(errorBody.message || 'Error al cancelar la orden');
+        }
         return await res.json();
     },
 
@@ -72,9 +90,25 @@ export const OrderService = {
         return await res.json();
     },
 
+    async crearSolicitudCompra(data: { idUsuario: number; descripcion: string; cantidad: number; idOrden: number; idInsumo: number }) {
+        const res = await fetch(`${ORDERS_API}/compras/solicitar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error('Error al crear la solicitud de compra');
+        return await res.json();
+    },
+
     async getHistorial(idOrden: number) {
         const res = await fetch(`${ORDERS_API}/ordenes/${idOrden}/historial`);
         if (!res.ok) throw new Error('Error al obtener historial');
+        return await res.json();
+    },
+
+    async getRazonesCancelacion() {
+        const res = await fetch(`${ORDERS_API}/operaciones/razones-cancelacion`);
+        if (!res.ok) throw new Error('Error al obtener razones de cancelación');
         return await res.json();
     },
 

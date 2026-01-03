@@ -11,4 +11,9 @@ export interface AuthResponse {
     sub?: string;
     iat?: number;
     exp?: number;
+    status?: number;
+    error?: string;
+    message?: string;
+    timestamp?: string;
+    path?: string;
 }

@@ -15,6 +15,12 @@ const AppMenu = () => {
         const userStr = localStorage.getItem('user');
         const user = userStr ? JSON.parse(userStr) : null;
         const userPermisos: string[] = user?.permisos || [];
+
+        const userRole = user?.rol || user?.role || '';
+
+        const managementRoles = ['ADMIN', 'ADMINISTRADOR', 'DUEÑO', 'CONTADORA', 'CONTADOR'];
+        const isManagement = managementRoles.includes(userRole.toUpperCase());
+
         const fullModel: any[] = [
             {
                 label: 'Inicio',
@@ -62,8 +68,11 @@ const AppMenu = () => {
                         ]
                     },
                 ]
-            },
-            {
+            }
+        ];
+
+        if (!isManagement) {
+            fullModel.push({
                 label: 'Areas de Trabajo',
                 items: [
                     {
@@ -79,8 +88,8 @@ const AppMenu = () => {
                         permiso: 'VER_PANEL_TALLER'
                     },
                 ]
-            }
-        ];
+            });
+        }
 
         const filterMenuByPermissions = (items: any[]): any[] => {
             return items.reduce((acc, item) => {
@@ -98,6 +107,7 @@ const AppMenu = () => {
                 return acc;
             }, []);
         };
+
         const menuFiltered = filterMenuByPermissions(fullModel);
         setFilteredModel(menuFiltered);
     }, []);

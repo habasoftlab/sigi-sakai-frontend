@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -29,7 +30,6 @@ const SuppliesVerificationPage = () => {
 
     // --- ESTADOS PARA REPORTE DE FALTANTES ---
     const [showRequestDialog, setShowRequestDialog] = useState(false);
-    // Almacena los productos que el usuario marca como "Faltantes"
     const [selectedMissingProducts, setSelectedMissingProducts] = useState<any[]>([]);
     const [requestNotes, setRequestNotes] = useState('');
 
@@ -78,41 +78,46 @@ const SuppliesVerificationPage = () => {
         }
     };
 
+    // --- CASO 1: CONFIRMAR INSUMOS ---
     const handleConfirmSupplies = async () => {
         setIsSubmitting(true);
         try {
-            //await OrderService.actualizarVerificacionInsumos(Number(orderId), true);
+            const userStr = localStorage.getItem('user');
+            const currentUserId = userStr ? JSON.parse(userStr).idUsuario : 1;
+
+            await OrderService.avanzarEstatus(Number(orderId), {
+                idUsuario: currentUserId,
+                idEstatusDestino: 3, // ORD_EN_DISENO_CON_INSUMOS
+                hayInsumos: true,
+                clienteAprobo: false
+            });
+
             toast.current?.show({
                 severity: 'success',
                 summary: 'Insumos Confirmados',
-                detail: `La orden ${orderId} está lista para producción.`,
+                detail: `Orden #${orderId} marcada con insumos completos.`,
                 life: 2000
             });
             setTimeout(() => {
                 router.push('/workshoplist');
             }, 1500);
-        } catch (error) {
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo confirmar la orden.' });
+        } catch (error: any) {
+            console.error(error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: error.message || 'No se pudo confirmar la orden.' });
             setIsSubmitting(false);
         }
     };
 
-    // --- ABRIR MODAL DE FALTANTES ---
     const handleMissingSupplies = () => {
         setSelectedMissingProducts([]);
         setRequestNotes('');
         setShowRequestDialog(true);
     };
 
-    // --- ENVIAR REPORTE DE FALTANTES ---
+    // --- CASO 2: REPORTAR FALTANTES ---
     const sendSupplyRequest = async () => {
         if (selectedMissingProducts.length === 0) {
-            toast.current?.show({
-                severity: 'warn',
-                summary: 'Selección requerida',
-                detail: 'Selecciona al menos un producto que le falte material.',
-                life: 3000
-            });
+            toast.current?.show({ severity: 'warn', summary: 'Selección requerida', detail: 'Selecciona los productos faltantes.' });
             return;
         }
 
@@ -120,22 +125,32 @@ const SuppliesVerificationPage = () => {
         try {
             const userStr = localStorage.getItem('user');
             const currentUserId = userStr ? JSON.parse(userStr).idUsuario : 1;
-            const listaProductos = selectedMissingProducts
-                .map(p => `• ${p.nombreProducto} (${p.cantidad} ${p.unidad})`)
-                .join('\n');
 
-            const reporteFinal = `REPORTE DE FALTANTES:\n${listaProductos}\n\nNota Adicional: ${requestNotes || 'Ninguna'}`;
+            const solicitudes = selectedMissingProducts.map(producto => {
+                const descripcionCompleta = `${producto.nombreProducto}. Nota: ${requestNotes || 'Sin notas'}`;
 
+                return OrderService.crearSolicitudCompra({
+                    idUsuario: currentUserId,
+                    descripcion: descripcionCompleta,
+                    cantidad: Number(producto.cantidad),
+                    idOrden: Number(orderId),
+                    idInsumo: Number(producto.idProducto)
+                });
+            });
+
+            await Promise.all(solicitudes);
+
+            // Enviamos 'insumosVerificados: false' al avanzar estatus
             await OrderService.avanzarEstatus(Number(orderId), {
                 idUsuario: currentUserId,
-                idEstatusDestino: 4,
-                clienteAprobo: false,
+                idEstatusDestino: 4, // ORD_EN_DISENO_SIN_INSUMOS
+                hayInsumos: false
             });
 
             toast.current?.show({
                 severity: 'warn',
                 summary: 'Reporte Enviado',
-                detail: 'Se notificó la falta de material para los productos seleccionados.',
+                detail: `Se generaron ${solicitudes.length} solicitud(es) de compra.`,
                 life: 3000
             });
 
@@ -144,9 +159,9 @@ const SuppliesVerificationPage = () => {
                 router.push('/workshoplist');
             }, 1500);
 
-        } catch (error) {
-            console.error(error);
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo registrar la incidencia.' });
+        } catch (error: any) {
+            console.error("Error al procesar solicitudes:", error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: error.message || 'Hubo un problema al generar las solicitudes.' });
             setIsSubmitting(false);
         }
     };
@@ -167,13 +182,13 @@ const SuppliesVerificationPage = () => {
                         </a>
                     </Link>
                     <div>
-                        <h1 className="m-0 text-3xl font-bold">Verificación de insumos para orden #{orderId}</h1>
+                        <h1 className="m-0 text-3xl font-bold">Verificación de insumos orden #{orderId}</h1>
                         <span className="text-500">Confirma existencia física para liberar producción</span>
                     </div>
                 </div>
 
                 <div className="grid">
-                    {/* COLUMNA IZQUIERDA: RESUMEN */}
+                    {/* RESUMEN */}
                     <div className="col-12 md:col-6">
                         <Card title="Datos generales" className="mb-3 shadow-1 h-full">
                             <ul className="list-none p-0 m-0">
@@ -199,7 +214,7 @@ const SuppliesVerificationPage = () => {
                         </Card>
                     </div>
 
-                    {/* COLUMNA DERECHA: MATERIALES A VERIFICAR */}
+                    {/* MATERIALES */}
                     <div className="col-12 md:col-6">
                         <Card title="Productos solicitados" className="mb-3 shadow-1 bg-100 h-full">
                             <p className="text-sm text-600 mb-2">Revisa la existencia de:</p>
@@ -216,7 +231,7 @@ const SuppliesVerificationPage = () => {
                     </div>
                 </div>
 
-                {/* --- BOTONES DE ACCIÓN GRANDE --- */}
+                {/* BOTONES DE ACCIÓN */}
                 <Card className="shadow-4 border-top-3 border-orange-500 mt-4">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold mt-0 mb-2">¿Están completos los insumos?</h2>
@@ -231,7 +246,7 @@ const SuppliesVerificationPage = () => {
                             >
                                 <i className="pi pi-check-circle text-5xl mb-3"></i>
                                 <span className="font-bold text-xl">Confirmar existencia</span>
-                                <span className="text-sm opacity-90 mt-1">Todo listo para producir</span>
+                                <span className="text-sm opacity-90 mt-1">Marcar la orden con insumos listos</span>
                             </Button>
 
                             <Button
@@ -241,19 +256,19 @@ const SuppliesVerificationPage = () => {
                             >
                                 <i className="pi pi-exclamation-triangle text-5xl mb-3"></i>
                                 <span className="font-bold text-xl">Falta material</span>
-                                <span className="text-sm opacity-90 mt-1">Reportar productos faltantes</span>
+                                <span className="text-sm opacity-90 mt-1">Marcar la orden sin insumos y solicitar compra de insumos</span>
                             </Button>
                         </div>
                     </div>
                 </Card>
             </div>
 
-            {/* --- MODAL: SELECCIÓN DE PRODUCTOS CON FALTANTES --- */}
+            {/* MODAL FALTANTES */}
             <Dialog
                 header={
                     <div className="flex align-items-center text-red-700">
                         <i className="pi pi-exclamation-triangle mr-2 text-2xl"></i>
-                        <span className="font-bold">Reporte de faltantes</span>
+                        <span className="font-bold">Solicitar Insumos</span>
                     </div>
                 }
                 visible={showRequestDialog}
@@ -264,7 +279,7 @@ const SuppliesVerificationPage = () => {
                     <div className="flex justify-content-end gap-2 pt-2">
                         <Button label="Cancelar" icon="pi pi-times" onClick={() => setShowRequestDialog(false)} className="p-button-text" />
                         <Button
-                            label="Confirmar reporte"
+                            label="Enviar Solicitud"
                             icon="pi pi-send"
                             onClick={sendSupplyRequest}
                             autoFocus
@@ -277,10 +292,9 @@ const SuppliesVerificationPage = () => {
             >
                 <div className="flex flex-column gap-3 pt-1">
                     <p className="m-0 text-700">
-                        Selecciona los productos que <strong>no se pueden producir</strong> por falta de material:
+                        Selecciona los productos afectados para generar la orden de compra:
                     </p>
 
-                    {/* TABLA DE SELECCIÓN */}
                     <div className="border-1 surface-border border-round overflow-hidden">
                         <DataTable
                             value={orderItems}
@@ -299,7 +313,7 @@ const SuppliesVerificationPage = () => {
 
                     <div className="field mt-2">
                         <label htmlFor="notas" className="font-bold block mb-2 text-800">
-                            Detalles para compras <span className="text-red-500">*</span>
+                            Notas para el encargado de compras:
                         </label>
                         <InputTextarea
                             id="notas"
@@ -307,9 +321,9 @@ const SuppliesVerificationPage = () => {
                             onChange={(e) => setRequestNotes(e.target.value)}
                             rows={3}
                             className="w-full"
-                            placeholder="Ej. Falta Lona 13oz, solo hay 2 metros. Se requiere tinta magenta..."
+                            placeholder="Ej. Se necesita Lona 13oz urgente..."
                         />
-                        <small className="text-500">Especifica qué material falta y la urgencia.</small>
+                        <small className="text-500">Estas notas se agregarán a la descripción de cada producto.</small>
                     </div>
                 </div>
             </Dialog>
