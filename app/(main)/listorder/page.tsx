@@ -38,9 +38,12 @@ const ListOrderPage = () => {
     const [selectedReason, setSelectedReason] = useState<number | null>(null);
     const [isCancelling, setIsCancelling] = useState(false);
 
-    // --- NUEVO: ESTADOS PARA ENTREGA ---
+    // --- ESTADOS PARA ENTREGA ---
     const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
     const [selectedOrderToDeliver, setSelectedOrderToDeliver] = useState<number | null>(null);
+
+    // 1. NUEVO: Estado para guardar el adeudo de la orden seleccionada
+    const [selectedOrderDebt, setSelectedOrderDebt] = useState<number>(0);
     const [isDelivering, setIsDelivering] = useState(false);
 
     const toast = useRef<Toast>(null);
@@ -138,8 +141,9 @@ const ListOrderPage = () => {
     };
 
     // --- LÓGICA DE ENTREGA ---
-    const openDeliveryDialog = (idOrden: number) => {
-        setSelectedOrderToDeliver(idOrden);
+    const openDeliveryDialog = (nodeData: any) => {
+        setSelectedOrderToDeliver(nodeData.idOrden);
+        setSelectedOrderDebt(nodeData.saldo || 0);
         setShowDeliveryDialog(true);
     };
 
@@ -205,6 +209,8 @@ const ListOrderPage = () => {
                 children: childrenItems.map(item => {
                     let clientLabel = item.clienteNombre || (item.idCliente ? (cMap[item.idCliente] || `Cliente #${item.idCliente}`) : 'Público General');
                     const statusLabel = sMap[item.idEstatusActual] || `Estatus ${item.idEstatusActual}`;
+                    const saldoCalculado = (item.montoTotal || 0) - (item.montoPagado || 0);
+
                     return {
                         key: item.idOrden.toString(),
                         data: {
@@ -213,6 +219,7 @@ const ListOrderPage = () => {
                             cliente: clientLabel,
                             fecha: item.fechaCreacion,
                             total: item.montoTotal,
+                            saldo: saldoCalculado,
                             idEstatus: item.idEstatusActual,
                             estatusNombre: statusLabel,
                             isGroup: false
@@ -247,10 +254,19 @@ const ListOrderPage = () => {
         );
     };
 
-    const totalBodyTemplate = (node: TreeNode) => <span className={node.data.isGroup ? "font-bold text-lg" : ""}>${(node.data.total || 0).toFixed(2)}</span>;
+    const totalBodyTemplate = (node: TreeNode) => {
+        if (node.data.isGroup) return <span className="font-bold text-lg">${(node.data.total || 0).toFixed(2)}</span>;
+        const tieneAdeudo = node.data.saldo > 0.5;
+        return (
+            <div className="flex flex-column align-items-end">
+                <span>${(node.data.total || 0).toFixed(2)}</span>
+                {tieneAdeudo && <span className="text-xs text-red-500 font-bold">Resta: ${node.data.saldo.toFixed(2)}</span>}
+            </div>
+        );
+    };
+
     const dateBodyTemplate = (node: TreeNode) => node.data.fecha ? new Date(node.data.fecha).toLocaleDateString('es-MX') : '';
 
-    // --- TEMPLATE DE ACCIONES ---
     const actionTemplate = (node: TreeNode) => {
         if (node.data.isGroup) return null;
 
@@ -264,7 +280,6 @@ const ListOrderPage = () => {
                     <Button icon="pi pi-eye" rounded text severity="secondary" tooltip="Seguimiento" />
                 </Link>
 
-                {/* BOTÓN DE ENTREGA (Solo visible si está lista) */}
                 {isReadyForDelivery && (
                     <Button
                         icon="pi pi-check-circle"
@@ -272,11 +287,10 @@ const ListOrderPage = () => {
                         text
                         severity="success"
                         tooltip="Marcar como Entregada"
-                        onClick={() => openDeliveryDialog(node.data.idOrden)}
+                        onClick={() => openDeliveryDialog(node.data)}
                     />
                 )}
 
-                {/* BOTÓN DE CANCELAR (Solo si NO está lista para entrega y NO está finalizada) */}
                 {!isReadyForDelivery && !isFinished && (
                     <Button
                         icon="pi pi-trash"
@@ -290,6 +304,8 @@ const ListOrderPage = () => {
             </div>
         );
     };
+
+    const hasPendingDebt = selectedOrderDebt > 0.5;
 
     return (
         <div className="card">
@@ -394,12 +410,12 @@ const ListOrderPage = () => {
                 </div>
             </Dialog>
 
-            {/* --- VENTANA DE ENTREGA (NUEVO) --- */}
+            {/* --- VENTANA DE ENTREGA --- */}
             <Dialog
                 header={
-                    <div className="flex align-items-center gap-2 text-green-700">
-                        <i className="pi pi-check-circle text-xl" />
-                        <span className="font-bold">Confirmar Entrega</span>
+                    <div className={`flex align-items-center gap-2 ${hasPendingDebt ? 'text-red-600' : 'text-green-700'}`}>
+                        <i className={`pi ${hasPendingDebt ? 'pi-exclamation-circle' : 'pi-check-circle'} text-xl`} />
+                        <span className="font-bold">{hasPendingDebt ? '¡Orden con Adeudo!' : 'Confirmar Entrega'}</span>
                     </div>
                 }
                 visible={showDeliveryDialog}
@@ -409,29 +425,59 @@ const ListOrderPage = () => {
                 footer={
                     <div className="flex justify-content-end gap-2 pt-2">
                         <Button
-                            label="Cancelar"
+                            label={hasPendingDebt ? "Cerrar" : "Cancelar"}
                             icon="pi pi-times"
                             onClick={() => setShowDeliveryDialog(false)}
                             className="p-button-text"
                         />
-                        <Button
-                            label="Entregar Orden"
-                            icon="pi pi-check"
-                            onClick={confirmDelivery}
-                            severity="success"
-                            loading={isDelivering}
-                        />
+                        {!hasPendingDebt && (
+                            <Button
+                                label="Entregar Orden"
+                                icon="pi pi-check"
+                                onClick={confirmDelivery}
+                                severity="success"
+                                loading={isDelivering}
+                            />
+                        )}
+                        {/* Opcional: Botón para ir a pagar si tiene deuda */}
+                        {hasPendingDebt && (
+                            <Link href="/counter" passHref legacyBehavior>
+                                <Button
+                                    label="Ir a Caja"
+                                    icon="pi pi-wallet"
+                                    severity="warning"
+                                />
+                            </Link>
+                        )}
                     </div>
                 }
             >
-                <div className="pt-2">
-                    <p className="m-0 text-lg">
-                        ¿Confirmas que el cliente ha recibido sus productos satisfactoriamente?
-                    </p>
-                    <small className="text-500 block mt-2">
-                        La orden pasará al estatus &quot;Entregada&quot; y se archivará como completada.
-                    </small>
-                </div>
+                {/* 5. MODIFICADO: Contenido condicional basado en el adeudo */}
+                {hasPendingDebt ? (
+                    <div className="pt-2 text-center">
+                        <div className="inline-flex align-items-center justify-content-center bg-red-100 border-circle mb-3" style={{ width: '64px', height: '64px' }}>
+                            <i className="pi pi-wallet text-red-500 text-3xl"></i>
+                        </div>
+                        <h3 className="text-red-700 m-0 mb-2">Pago Pendiente</h3>
+                        <p className="m-0 text-lg mb-3">
+                            Esta orden tiene un saldo pendiente de:
+                            <br />
+                            <strong className="text-2xl text-900">${selectedOrderDebt.toFixed(2)}</strong>
+                        </p>
+                        <p className="text-sm text-600">
+                            No es posible entregar la mercancía hasta que el saldo sea liquidado en su totalidad.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="pt-2">
+                        <p className="m-0 text-lg">
+                            ¿Confirmas que el cliente ha recibido sus productos satisfactoriamente?
+                        </p>
+                        <small className="text-500 block mt-2">
+                            La orden pasará al estatus &quot;Entregada&quot; y se archivará como completada.
+                        </small>
+                    </div>
+                )}
             </Dialog>
         </div>
     );

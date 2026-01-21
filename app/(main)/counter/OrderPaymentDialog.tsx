@@ -5,6 +5,7 @@ import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
 import { InputNumber } from 'primereact/inputnumber';
 import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
 import { Divider } from 'primereact/divider';
 import { FileUpload } from 'primereact/fileupload';
 
@@ -19,12 +20,14 @@ interface OrderPaymentDialogProps {
     paymentConditions: any[];
     onConfirmPayment: (paymentData: PaymentData) => void;
     isSubmitting: boolean;
+    notes: string;
+    onNotesChange: (val: string) => void;
 }
 
 export interface PaymentData {
     amount: number;
     paymentType: 'unico' | 'anticipo' | 'plazos';
-    notes: string;
+    notes: string; // Referencia del pago
     conditionId: number;
     file: File | null;
 }
@@ -33,17 +36,18 @@ export const OrderPaymentDialog = (props: OrderPaymentDialogProps) => {
     const {
         visible, onHide, orderId, items, total, paidAmount,
         currentConditionId,
-        paymentConditions, onConfirmPayment, isSubmitting
+        paymentConditions, onConfirmPayment, isSubmitting,
+        notes, onNotesChange
     } = props;
 
     const [paymentType, setPaymentType] = useState<'unico' | 'anticipo' | 'plazos'>('unico');
     const [advanceAmount, setAdvanceAmount] = useState<number>(0);
-    const [orderNotes, setOrderNotes] = useState('');
+    const [paymentReference, setPaymentReference] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     useEffect(() => {
         if (visible) {
-            setOrderNotes('');
+            setPaymentReference('');
             setSelectedFile(null);
             const saldo = total - paidAmount;
             let initialType: 'unico' | 'anticipo' | 'plazos' = 'unico';
@@ -103,7 +107,7 @@ export const OrderPaymentDialog = (props: OrderPaymentDialogProps) => {
         onConfirmPayment({
             amount: advanceAmount,
             paymentType,
-            notes: orderNotes,
+            notes: paymentReference,
             conditionId,
             file: selectedFile
         });
@@ -116,14 +120,14 @@ export const OrderPaymentDialog = (props: OrderPaymentDialogProps) => {
         <Dialog
             header={items.length > 0 ? `Resumen de la orden #${orderId || ''}` : `Abonar orden #${orderId || ''}`}
             visible={visible}
-            style={{ width: '85vw', maxWidth: '1200px' }}
+            style={{ width: '90vw', maxWidth: '1300px' }}
             modal
             onHide={onHide}
         >
             <div className="grid">
                 {/* --- COLUMNA IZQUIERDA: DETALLES --- */}
                 <div className="col-12 lg:col-8">
-                    <div className="surface-card p-4 border-round shadow-1 h-full">
+                    <div className="surface-card p-4 border-round shadow-1 h-full flex flex-column">
                         <h3 className="mb-4 text-700 text-xl font-bold flex align-items-center gap-2">
                             <i className="pi pi-list text-primary"></i>
                             Detalle de la Orden
@@ -135,13 +139,8 @@ export const OrderPaymentDialog = (props: OrderPaymentDialogProps) => {
                             size="small"
                             showGridlines
                             stripedRows
-                            emptyMessage={
-                                <div className="text-center p-4">
-                                    <i className="pi pi-wallet text-4xl text-green-500 mb-2"></i>
-                                    <p className="font-bold text-xl m-0">Modo de Cobranza Rápida</p>
-                                    <p className="text-gray-600">Registrando pago para el saldo pendiente.</p>
-                                </div>
-                            }
+                            emptyMessage="Sin productos"
+                            scrollHeight="300px"
                         >
                             <Column field="descripcion" header="Producto" />
                             <Column field="cantidad" header="Cant." className="text-center" style={{ width: '10%' }} />
@@ -149,7 +148,7 @@ export const OrderPaymentDialog = (props: OrderPaymentDialogProps) => {
                             <Column field="importe" header="Total" body={(d) => `$${d.importe.toFixed(2)}`} className="text-right font-bold" style={{ width: '20%' }} />
                         </DataTable>
 
-                        <div className="flex justify-content-end mt-5">
+                        <div className="flex justify-content-end mt-3">
                             <div className="text-right p-3 border-round surface-50 border-1 border-200">
                                 <span className="text-xl text-600 mr-3">Total de la Orden:</span>
                                 <span className="text-3xl font-bold text-primary">${total.toFixed(2)}</span>
@@ -158,7 +157,22 @@ export const OrderPaymentDialog = (props: OrderPaymentDialogProps) => {
 
                         <Divider />
 
+                        {/* --- SECCIÓN DE NOTAS DE DISEÑO --- */}
                         <div className="mb-4">
+                            <label className="font-bold block mb-2 text-900">
+                                <i className="pi pi-pencil mr-2 text-primary"></i>
+                                Notas / Instrucciones de Diseño
+                            </label>
+                            <InputTextarea
+                                value={notes || ''}
+                                onChange={(e) => onNotesChange(e.target.value)}
+                                rows={4}
+                                className="w-full"
+                                placeholder="Escribe aquí las instrucciones detalladas para el diseñador (colores, textos, cambios...)"
+                            />
+                        </div>
+
+                        <div className="mb-2">
                             <label className="font-bold block mb-2 text-700">
                                 <i className="pi pi-cloud-upload mr-2"></i>
                                 Archivos / Diseño
@@ -280,15 +294,20 @@ export const OrderPaymentDialog = (props: OrderPaymentDialogProps) => {
                             </div>
                         </div>
 
-                        <InputText
-                            className="w-full mb-4"
-                            value={orderNotes}
-                            onChange={(e) => setOrderNotes(e.target.value)}
-                            placeholder="Referencia de pago / Notas..."
-                        />
+                        {/* Campo de Referencia de Pago */}
+                        <div className="mb-4">
+                            <label htmlFor="paymentRef" className="block text-600 text-sm mb-1">Referencia de Pago (Opcional)</label>
+                            <InputText
+                                id="paymentRef"
+                                className="w-full"
+                                value={paymentReference}
+                                onChange={(e) => setPaymentReference(e.target.value)}
+                                placeholder="Efevo / Transf / #Recibo"
+                            />
+                        </div>
 
                         <Button
-                            label="Confirmar Pago"
+                            label="Confirmar Pago y Guardar"
                             icon="pi pi-check-circle"
                             size="large"
                             className="mt-auto w-full shadow-3"

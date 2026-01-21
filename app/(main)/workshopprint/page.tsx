@@ -232,7 +232,7 @@ const PrintOrderPage = () => {
                                 </div>
                                 <div className="col-12">
                                     <label className="text-sm font-bold text-600 block mb-1">Notas de Producción / Diseño</label>
-                                    <div className="p-3 bg-yellow-50 border-1 border-yellow-200 border-round text-700 font-italic">
+                                    <div className="p-3 bg-50 border-1 border-yellow-200 border-round text-700 font-italic">
                                         {orderData.notasDiseno || orderData.comentarios || 'Sin notas especiales'}
                                     </div>
                                 </div>

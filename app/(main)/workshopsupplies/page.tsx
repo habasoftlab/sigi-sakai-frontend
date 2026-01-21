@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { InputTextarea } from 'primereact/inputtextarea';
+import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import { DataTable } from 'primereact/datatable';
@@ -33,6 +34,9 @@ const SuppliesVerificationPage = () => {
     const [selectedMissingProducts, setSelectedMissingProducts] = useState<any[]>([]);
     const [requestNotes, setRequestNotes] = useState('');
 
+    // Estado para guardar las cantidades manuales (Key: idDetalle, Value: string)
+    const [missingQuantities, setMissingQuantities] = useState<Record<number, string>>({});
+
     useEffect(() => {
         if (orderId) {
             loadData(Number(orderId));
@@ -55,7 +59,10 @@ const SuppliesVerificationPage = () => {
                 return {
                     ...d,
                     nombreProducto: prod?.descripcion || prod?.nombre || 'Producto desconocido',
-                    unidad: prod?.unidadVenta || 'pzas'
+                    unidad: prod?.unidadVenta || 'pzas',
+                    cantidadPaquete: prod?.cantidadPaquete || 1,
+                    precioPaquete: prod?.precioPaquete || 0,
+                    idProducto: d.idProducto
                 };
             });
 
@@ -78,7 +85,6 @@ const SuppliesVerificationPage = () => {
         }
     };
 
-    // --- CASO 1: CONFIRMAR INSUMOS ---
     const handleConfirmSupplies = async () => {
         setIsSubmitting(true);
         try {
@@ -87,34 +93,66 @@ const SuppliesVerificationPage = () => {
 
             await OrderService.avanzarEstatus(Number(orderId), {
                 idUsuario: currentUserId,
-                idEstatusDestino: 3, // ORD_EN_DISENO_CON_INSUMOS
+                idEstatusDestino: 3,
                 hayInsumos: true,
                 clienteAprobo: false
             });
 
-            toast.current?.show({
-                severity: 'success',
-                summary: 'Insumos Confirmados',
-                detail: `Orden #${orderId} marcada con insumos completos.`,
-                life: 2000
-            });
-            setTimeout(() => {
-                router.push('/workshoplist');
-            }, 1500);
+            toast.current?.show({ severity: 'success', summary: 'Insumos Confirmados', detail: `Orden #${orderId} marcada con insumos completos.` });
+            setTimeout(() => { router.push('/workshoplist'); }, 1500);
         } catch (error: any) {
-            console.error(error);
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: error.message || 'No se pudo confirmar la orden.' });
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: error.message || 'No se pudo confirmar.' });
             setIsSubmitting(false);
         }
     };
 
     const handleMissingSupplies = () => {
         setSelectedMissingProducts([]);
+        setMissingQuantities({});
         setRequestNotes('');
         setShowRequestDialog(true);
     };
 
-    // --- CASO 2: REPORTAR FALTANTES ---
+    const calculateSuggestion = (item: any): string => {
+        const cantidadOrden = Number(item.cantidad);
+        const tamanoPaquete = Number(item.cantidadPaquete);
+        if (!tamanoPaquete || tamanoPaquete <= 1) {
+            return `${cantidadOrden}`;
+        }
+        const paquetesNecesarios = Math.ceil(cantidadOrden / tamanoPaquete);
+        return `${paquetesNecesarios} Paquetes`;
+    };
+
+    const onSelectionChange = (e: any) => {
+        const selectedItems = e.value;
+        setSelectedMissingProducts(selectedItems);
+
+        const updates = { ...missingQuantities };
+        selectedItems.forEach((item: any) => {
+            if (!updates[item.idDetalle]) {
+                updates[item.idDetalle] = calculateSuggestion(item);
+            }
+        });
+        setMissingQuantities(updates);
+    };
+
+    const onQuantityChange = (idDetalle: number, value: string) => {
+        setMissingQuantities(prev => ({ ...prev, [idDetalle]: value }));
+    };
+
+    const quantityInputTemplate = (rowData: any) => {
+        const isSelected = selectedMissingProducts.some(p => p.idDetalle === rowData.idDetalle);
+        return (
+            <InputText
+                value={missingQuantities[rowData.idDetalle] || ''}
+                onChange={(e) => onQuantityChange(rowData.idDetalle, e.target.value)}
+                placeholder={isSelected ? calculateSuggestion(rowData) : ""}
+                disabled={!isSelected}
+                className="w-full p-inputtext-sm"
+            />
+        );
+    };
+
     const sendSupplyRequest = async () => {
         if (selectedMissingProducts.length === 0) {
             toast.current?.show({ severity: 'warn', summary: 'Selección requerida', detail: 'Selecciona los productos faltantes.' });
@@ -126,42 +164,34 @@ const SuppliesVerificationPage = () => {
             const userStr = localStorage.getItem('user');
             const currentUserId = userStr ? JSON.parse(userStr).idUsuario : 1;
 
-            const solicitudes = selectedMissingProducts.map(producto => {
-                const descripcionCompleta = `${producto.nombreProducto}. Nota: ${requestNotes || 'Sin notas'}`;
-
-                return OrderService.crearSolicitudCompra({
-                    idUsuario: currentUserId,
-                    descripcion: descripcionCompleta,
-                    cantidad: Number(producto.cantidad),
-                    idOrden: Number(orderId),
-                    idInsumo: Number(producto.idProducto)
-                });
+            const productosPayload = selectedMissingProducts.map(p => {
+                const valorInput = missingQuantities[p.idDetalle] || calculateSuggestion(p);
+                return {
+                    idProducto: Number(p.idProducto),
+                    cantidad: String(valorInput)
+                };
             });
 
-            await Promise.all(solicitudes);
-
-            // Enviamos 'insumosVerificados: false' al avanzar estatus
+            const requestBody = {
+                idUsuario: currentUserId,
+                idOrden: Number(orderId),
+                descripcionGeneral: requestNotes || 'Solicitud de insumos',
+                productos: productosPayload
+            };
+            await OrderService.crearSolicitudCompra(requestBody);
             await OrderService.avanzarEstatus(Number(orderId), {
                 idUsuario: currentUserId,
-                idEstatusDestino: 4, // ORD_EN_DISENO_SIN_INSUMOS
+                idEstatusDestino: 4,
                 hayInsumos: false
             });
 
-            toast.current?.show({
-                severity: 'warn',
-                summary: 'Reporte Enviado',
-                detail: `Se generaron ${solicitudes.length} solicitud(es) de compra.`,
-                life: 3000
-            });
-
+            toast.current?.show({ severity: 'success', summary: 'Solicitud Creada', detail: 'Se ha enviado la lista a compras.' });
             setShowRequestDialog(false);
-            setTimeout(() => {
-                router.push('/workshoplist');
-            }, 1500);
+            setTimeout(() => { router.push('/workshoplist'); }, 1500);
 
         } catch (error: any) {
-            console.error("Error al procesar solicitudes:", error);
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: error.message || 'Hubo un problema al generar las solicitudes.' });
+            console.error("Error payload:", error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: error.message || 'Error al procesar solicitud.' });
             setIsSubmitting(false);
         }
     };
@@ -199,9 +229,7 @@ const SuppliesVerificationPage = () => {
                                 <li className="flex justify-content-between mb-3 border-bottom-1 surface-border pb-2">
                                     <span className="text-600 font-medium">Fecha Entrega:</span>
                                     <span className="text-900 font-bold">
-                                        {orderData.fechaEntregaFormal
-                                            ? new Date(orderData.fechaEntregaFormal).toLocaleDateString()
-                                            : 'No definida'}
+                                        {orderData.fechaEntregaFormal ? new Date(orderData.fechaEntregaFormal).toLocaleDateString() : 'No definida'}
                                     </span>
                                 </li>
                                 <li className="flex justify-content-between">
@@ -223,7 +251,7 @@ const SuppliesVerificationPage = () => {
                                 <Column
                                     field="cantidad"
                                     header="Cant."
-                                    body={(d) => `${d.cantidad} ${d.unidad}`}
+                                    body={(d) => `${d.cantidad}`}
                                     style={{ width: '30%', textAlign: 'center', fontWeight: 'bold' }}
                                 ></Column>
                             </DataTable>
@@ -238,25 +266,13 @@ const SuppliesVerificationPage = () => {
                         <p className="text-600 mb-5">Verifica físicamente en almacén antes de confirmar.</p>
 
                         <div className="flex flex-column md:flex-row gap-4 justify-content-center px-4 pb-2">
-                            <Button
-                                className="p-button-success p-button-lg flex-1 flex flex-column py-5 shadow-2 hover:shadow-4 transition-all"
-                                onClick={handleConfirmSupplies}
-                                loading={isSubmitting}
-                                disabled={isSubmitting}
-                            >
+                            <Button className="p-button-success p-button-lg flex-1 py-5" onClick={handleConfirmSupplies} loading={isSubmitting} disabled={isSubmitting}>
                                 <i className="pi pi-check-circle text-5xl mb-3"></i>
                                 <span className="font-bold text-xl">Confirmar existencia</span>
-                                <span className="text-sm opacity-90 mt-1">Marcar la orden con insumos listos</span>
                             </Button>
-
-                            <Button
-                                className="p-button-danger p-button-outlined p-button-lg flex-1 flex flex-column py-5 shadow-2 hover:shadow-4 transition-all"
-                                onClick={handleMissingSupplies}
-                                disabled={isSubmitting}
-                            >
+                            <Button className="p-button-danger p-button-outlined p-button-lg flex-1 py-5" onClick={handleMissingSupplies} disabled={isSubmitting}>
                                 <i className="pi pi-exclamation-triangle text-5xl mb-3"></i>
                                 <span className="font-bold text-xl">Falta material</span>
-                                <span className="text-sm opacity-90 mt-1">Marcar la orden sin insumos y solicitar compra de insumos</span>
                             </Button>
                         </div>
                     </div>
@@ -265,69 +281,73 @@ const SuppliesVerificationPage = () => {
 
             {/* MODAL FALTANTES */}
             <Dialog
-                header={
-                    <div className="flex align-items-center text-red-700">
-                        <i className="pi pi-exclamation-triangle mr-2 text-2xl"></i>
-                        <span className="font-bold">Solicitar Insumos</span>
-                    </div>
-                }
+                header={<div className="text-red-700 font-bold"><i className="pi pi-shopping-cart mr-2"></i>Solicitar insumos</div>}
                 visible={showRequestDialog}
-                style={{ width: '90vw', maxWidth: '600px' }}
+                style={{ width: '90vw', maxWidth: '900px' }}
                 modal
                 onHide={() => setShowRequestDialog(false)}
                 footer={
                     <div className="flex justify-content-end gap-2 pt-2">
                         <Button label="Cancelar" icon="pi pi-times" onClick={() => setShowRequestDialog(false)} className="p-button-text" />
-                        <Button
-                            label="Enviar Solicitud"
-                            icon="pi pi-send"
-                            onClick={sendSupplyRequest}
-                            autoFocus
-                            severity="danger"
-                            loading={isSubmitting}
-                            disabled={selectedMissingProducts.length === 0}
-                        />
+                        <Button label="Enviar Solicitud" icon="pi pi-send" onClick={sendSupplyRequest} severity="danger" loading={isSubmitting} disabled={selectedMissingProducts.length === 0} />
                     </div>
                 }
             >
                 <div className="flex flex-column gap-3 pt-1">
                     <p className="m-0 text-700">
-                        Selecciona los productos afectados para generar la orden de compra:
+                        Selecciona los productos y <strong>especifica la cantidad de material</strong> a comprar:
                     </p>
 
                     <div className="border-1 surface-border border-round overflow-hidden">
                         <DataTable
                             value={orderItems}
                             selection={selectedMissingProducts}
-                            onSelectionChange={(e) => setSelectedMissingProducts(e.value)}
+                            onSelectionChange={onSelectionChange}
                             dataKey="idDetalle"
                             responsiveLayout="scroll"
                             size="small"
                             stripedRows
                         >
                             <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>
-                            <Column field="nombreProducto" header="Producto faltante"></Column>
-                            <Column field="cantidad" header="Cantidad" body={(d) => `${d.cantidad} ${d.unidad}`} style={{ width: '25%' }}></Column>
+
+                            <Column field="nombreProducto" header="Producto de la Orden"></Column>
+
+                            <Column
+                                field="cantidad"
+                                header="Requerido"
+                                body={(d) => <span className="text-600">{d.cantidad} {d.unidad}</span>}
+                                style={{ width: '15%' }}
+                            ></Column>
+
+                            <Column
+                                header="Presentación"
+                                body={(d) => <span className="text-sm text-blue-600">{d.cantidadPaquete > 1 ? `Paq. de ${d.cantidadPaquete}` : 'Unitario'}</span>}
+                                style={{ width: '15%' }}
+                            ></Column>
+
+                            <Column
+                                header="Cantidad a Pedir"
+                                body={quantityInputTemplate}
+                                style={{ width: '25%' }}
+                            ></Column>
                         </DataTable>
                     </div>
 
                     <div className="field mt-2">
                         <label htmlFor="notas" className="font-bold block mb-2 text-800">
-                            Notas para el encargado de compras:
+                            Notas generales para compras (Urgencia, proveedor sugerido, etc):
                         </label>
                         <InputTextarea
                             id="notas"
                             value={requestNotes}
                             onChange={(e) => setRequestNotes(e.target.value)}
-                            rows={3}
+                            rows={2}
                             className="w-full"
-                            placeholder="Ej. Se necesita Lona 13oz urgente..."
+                            placeholder="Ej. Urgente para el pedido de Coca-Cola..."
                         />
-                        <small className="text-500">Estas notas se agregarán a la descripción de cada producto.</small>
                     </div>
                 </div>
             </Dialog>
-
         </div>
     );
 };
