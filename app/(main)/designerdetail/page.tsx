@@ -128,6 +128,32 @@ const DesignerOrderDetailPage = () => {
         }
     };
 
+    // --- HELPER: OBTENER ETIQUETA DE ESTATUS ---
+    const getStatusLabel = (status: number) => {
+        switch (status) {
+            case 2: return 'Esperando Insumos';
+            case 3: return 'En Diseño (Con Insumos)';
+            case 4: return 'En Diseño (Sin Insumos)';
+            case 7: return 'En Desarrollo';
+            case 8: return 'En Revisión con Cliente';
+            case 9: return 'Diseño Aprobado';
+            case 10: return 'Rechazado / Correcciones';
+            case 5: return 'En Impresión';
+            default: return `Estatus ${status}`;
+        }
+    };
+
+    // --- HELPER: COLOR DE ESTATUS ---
+    const getSeverity = (status: number): "success" | "info" | "warning" | "danger" | null => {
+        if (status === 7) return 'info';
+        if (status === 8) return 'warning';
+        if (status === 9) return 'success';
+        if (status === 10) return 'danger';
+        if (status === 2) return 'warning';
+        if (status === 3 || status === 4) return 'info';
+        return null;
+    };
+
     // --- ACCIÓN 1: SUBIR ARCHIVO (Sin cambiar estatus) ---
     const handleUploadOnly = async () => {
         if (!uploadedFile) return;
@@ -220,7 +246,6 @@ const DesignerOrderDetailPage = () => {
         }
 
         // FASE 1: DESARROLLO (Subir y Enviar)
-        // Aceptamos 7 (Proceso), 3 y 4 (Insumos).
         if (estatus === 7 || estatus === 3 || estatus === 4) {
             return (
                 <Card title="Entrega de Diseño" className="mb-4 shadow-2">
@@ -264,7 +289,7 @@ const DesignerOrderDetailPage = () => {
             );
         }
 
-        // FASE 1.5:(Estatus 10 - Rechazado)
+        // FASE 1.5: CORRECCIÓN (Estatus 10 - Rechazado)
         if (estatus === 10) {
             return (
                 <Card className="mb-4 shadow-2 border-top-3 border-red-500">
@@ -378,16 +403,6 @@ const DesignerOrderDetailPage = () => {
         return null;
     };
 
-    const getSeverity = (status: number): "success" | "info" | "warning" | "danger" | null => {
-        if (status === 7) return 'info';
-        if (status === 8) return 'warning';
-        if (status === 9) return 'success';
-        if (status === 10) return 'danger';
-        if (status === 2) return 'warning';
-        if (status === 3 || status === 4) return 'info';
-        return null;
-    };
-
     if (loading || !orderData) return <div className="flex justify-content-center h-screen align-items-center"><i className="pi pi-spin pi-spinner text-4xl"></i></div>;
 
     return (
@@ -407,7 +422,11 @@ const DesignerOrderDetailPage = () => {
                             <h1 className="m-0 text-3xl font-bold">Orden N° {orderId}</h1>
                             <span className="text-500">Fecha de entrega: {orderData.fechaEntregaFormal || 'Pendiente'}</span>
                             <div className="mt-2">
-                                <Tag severity={getSeverity(orderData.idEstatusActual)} value={`Estatus ${orderData.idEstatusActual}`} />
+                                {/* CORRECCIÓN: Usamos getStatusLabel para el texto descriptivo */}
+                                <Tag
+                                    severity={getSeverity(Number(orderData.idEstatusActual))}
+                                    value={getStatusLabel(Number(orderData.idEstatusActual))}
+                                />
                             </div>
                         </div>
                     </div>
@@ -440,8 +459,11 @@ const DesignerOrderDetailPage = () => {
                                     <div className="p-2 surface-100 border-round font-medium"><i className="pi pi-phone text-green-600 mr-2"></i>{clientData?.telefono || 'N/A'}</div>
                                 </div>
                                 <div className="col-12">
-                                    <label className="text-sm font-bold text-600 block mb-1">Comentarios</label>
-                                    <div className="p-3 bg-50 border-1 border-yellow-100 border-round text-700 font-italic">{orderData.comentarios || 'Sin comentarios'}</div>
+                                    <label className="text-sm font-bold text-600 block mb-1">Comentarios / Notas de Diseño</label>
+                                    {/* CORRECCIÓN: Priorizamos mostrar las notas de diseño */}
+                                    <div className="p-3 bg-50 border-1 border-yellow-100 border-round text-700 font-italic">
+                                        {orderData.notasDiseno || orderData.comentarios || 'Sin notas de diseño.'}
+                                    </div>
                                 </div>
                             </div>
                         </div>

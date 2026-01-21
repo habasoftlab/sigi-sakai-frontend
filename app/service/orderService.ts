@@ -50,6 +50,16 @@ export const OrderService = {
         return true;
     },
 
+    async updateNotasDiseno(idOrden: number, notas: string) {
+        const res = await fetch(`${ORDERS_API}/ordenes/${idOrden}/notas-diseno`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notasDiseno: notas })
+        });
+        if (!res.ok) throw new Error('Error al actualizar notas de diseño');
+        return await res.json();
+    },
+
     async subirArchivo(idOrden: number, archivo: File) {
         const formData = new FormData();
         formData.append('file', archivo);
@@ -90,13 +100,13 @@ export const OrderService = {
         return await res.json();
     },
 
-    async crearSolicitudCompra(data: { idUsuario: number; descripcion: string; cantidad: number; idOrden: number; idInsumo: number }) {
+    async crearSolicitudCompra(data: any) {
         const res = await fetch(`${ORDERS_API}/compras/solicitar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        if (!res.ok) throw new Error('Error al crear la solicitud de compra');
+        if (!res.ok) throw new Error('Error creating purchase request');
         return await res.json();
     },
 

@@ -390,7 +390,13 @@ const Counter = () => {
         if (!activeOrderId || isSubmitting) return;
         setIsSubmitting(true);
         try {
+            // 1. Actualizar condición de pago
             await OrderService.updateCondicionPago(activeOrderId, data.conditionId);
+            // 2. Actualizar notas
+            if (orderNotes !== undefined) {
+                await OrderService.updateNotasDiseno(activeOrderId, orderNotes);
+            }
+            // 3. Registrar pago financiero
             if (data.amount > 0) {
                 await OrderService.registrarPago(activeOrderId, {
                     monto: data.amount,
@@ -398,18 +404,21 @@ const Counter = () => {
                     idUsuario: currentUserId
                 });
             }
+            // 4. Subir archivo
             if (data.file) {
                 try {
                     await OrderService.subirArchivo(activeOrderId, data.file);
                     toast.current?.show({ severity: 'info', summary: 'Archivo', detail: 'Archivo adjuntado correctamente.' });
                 } catch (e) { console.error(e); }
             }
+            // 5. Avanzar estatus si es Cotización
             if (activeOrderStatus === 1) {
                 await OrderService.avanzarEstatus(activeOrderId, { idUsuario: currentUserId });
             }
             toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Orden actualizada correctamente' });
             setShowOrderSummary(false);
             setActiveOrderId(null);
+            setOrderNotes('');
             loadOrderHistory();
         } catch (error: any) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: error.message });
@@ -433,6 +442,7 @@ const Counter = () => {
         setActiveOrderCondition(quoteRow.idCondicionPago || 1);
         try {
             const fullOrderData = await OrderService.getOrdenById(quoteRow.idOrden);
+            setOrderNotes(fullOrderData.notasDiseno || '');
             if (fullOrderData.detalles && Array.isArray(fullOrderData.detalles)) {
                 const mappedItems: any[] = fullOrderData.detalles.map((d: any) => {
                     const catalogoProducto = productsCatalog.find((p: any) => p.idProducto === d.idProducto);
@@ -462,14 +472,22 @@ const Counter = () => {
         }
     };
 
-    const handleQuickPay = (rowData: any) => {
+    const handleQuickPay = async (rowData: any) => {
         setActiveOrderId(rowData.idOrden);
         setActiveOrderTotal(rowData.montoTotal);
+
         const { tipoVisual, montoSugerido } = calcularSugerenciaPago(rowData);
         setPaymentType(tipoVisual);
         setAdvanceAmount(montoSugerido);
+
         setOrderNotes('');
         setActiveOrderItems([]);
+        try {
+            const fullData = await OrderService.getOrdenById(rowData.idOrden);
+            setOrderNotes(fullData.notasDiseno || '');
+        } catch (e) {
+            setOrderNotes('');
+        }
         setShowOrderSummary(true);
         setActiveOrderStatus(rowData.idEstatusActual);
         setActiveOrderPaid(rowData.montoPagado || 0);
@@ -639,6 +657,8 @@ const Counter = () => {
                     isSubmitting={isSubmitting}
                     onConfirmPayment={handleProcessPayment}
                     currentConditionId={activeOrderCondition}
+                    notes={orderNotes}
+                    onNotesChange={setOrderNotes}
                 />
 
                 {/* MODAL: SELECCION DE CLIENTE*/}
