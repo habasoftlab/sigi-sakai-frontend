@@ -1,14 +1,18 @@
 import { Client, ClientRequest } from "@/app/types/clients";
+import { apiClient } from "./apiClient";
 
-const API_URL = process.env.NEXT_PUBLIC_USERS_API_URL;
+// Apuntamos a la URL centralizada del API Gateway
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export const ClientService = {
 
     async getAll(): Promise<Client[]> {
-        const res = await fetch(`${API_URL}/clientes`);
+        const res = await apiClient(`${API_BASE_URL}/clientes`);
         if (!res.ok) throw new Error("Error al obtener clientes");
+        
         const data = await res.json();
         const listaCruda = Array.isArray(data) ? data : (data.content || []);
+        
         return listaCruda.map((item: any) => ({
             ...item,
             id: item.idCliente,
@@ -19,7 +23,7 @@ export const ClientService = {
     },
 
     async getById(id: number): Promise<Client> {
-        const res = await fetch(`${API_URL}/clientes/${id}`);
+        const res = await apiClient(`${API_BASE_URL}/clientes/${id}`);
         if (!res.ok) {
             throw new Error("No se pudo obtener el cliente");
         }
@@ -27,9 +31,8 @@ export const ClientService = {
     },
 
     async create(client: ClientRequest) {
-        const response = await fetch(`${API_URL}/clientes`, {
+        const response = await apiClient(`${API_BASE_URL}/clientes`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(client)
         });
         if (!response.ok) {
@@ -40,9 +43,8 @@ export const ClientService = {
     },
 
     async update(id: number, client: ClientRequest) {
-        const response = await fetch(`${API_URL}/clientes/${id}`, {
+        const response = await apiClient(`${API_BASE_URL}/clientes/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(client)
         });
         if (!response.ok) {
@@ -53,7 +55,9 @@ export const ClientService = {
     },
 
     async delete(id: number) {
-        const res = await fetch(`${API_URL}/clientes/${id}`, { method: "DELETE" });
+        const res = await apiClient(`${API_BASE_URL}/clientes/${id}`, {
+            method: "DELETE"
+        });
         if (!res.ok) throw new Error("Error al eliminar cliente");
         return true;
     }
