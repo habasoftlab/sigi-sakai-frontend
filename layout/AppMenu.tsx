@@ -38,10 +38,16 @@ const AppMenu = () => {
                         permiso: 'GESTIONAR_COTIZACIONES'
                     },
                     {
-                        label: 'Lista de clientes',
+                        label: 'Lista de Clientes',
                         icon: 'pi pi-fw pi-users',
                         to: '/listclient',
                         permiso: 'GESTIONAR_CLIENTES'
+                    },
+                    {
+                        label: 'Lista de Productos',
+                        icon: 'pi pi-fw pi-cart-plus',
+                        to: '/listproduct',
+                        permiso: 'GESTIONAR_ORDENES'
                     },
                     {
                         label: 'Lista de Cotizaciones',

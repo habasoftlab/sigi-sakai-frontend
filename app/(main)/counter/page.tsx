@@ -16,11 +16,11 @@ import { UserService } from "@/app/service/userService";
 import { Client } from "@/app/types/clients";
 import { Producto, NuevaOrdenRequest } from "@/app/types/orders";
 // DIALOGS
-import { QuoteListDialog } from './QuoteListDialog';
-import { ActiveOrdersDialog } from './ActiveOrdersDialog';
-import { QuoteSummaryDialog } from './QuoteSummaryDialog';
-import { OrderPaymentDialog, PaymentData } from './OrderPaymentDialog';
-import { ProductQuantityDialog } from './ProductQuantityDialog';
+import { QuoteListDialog } from '../../components/QuoteListDialog';
+import { ActiveOrdersDialog } from '../../components/ActiveOrdersDialog';
+import { QuoteSummaryDialog } from '../../components/QuoteSummaryDialog';
+import { OrderPaymentDialog, PaymentData } from '../../components/OrderPaymentDialog';
+import { ProductQuantityDialog } from '../../components/ProductQuantityDialog';
 import { ClientFormDialog } from "@/app/components/ClientFormDialog";
 import { ClientSearchDialog } from "@/app/components/ClientSearchDialog";
 
@@ -306,7 +306,7 @@ const Counter = () => {
                 insumosVerificados: false
             },
             detalles: quoteItems.map(i => ({
-                idProducto: i.idProducto,
+                idProducto: i.idProducto!,
                 cantidad: i.cantidad,
                 precioUnitario: i.precioUnitario,
                 importe: i.importe
@@ -338,7 +338,7 @@ const Counter = () => {
 
     const searchProduct = async (e: AutoCompleteCompleteEvent) => {
         if (!e.query.trim()) { setProducts([]); return; }
-        try { setProducts(await CatalogService.getProductos(e.query)); } catch (err) { }
+        try { setProducts(await CatalogService.getProducto(e.query)); } catch (err) { }
     };
 
     const onProductSelect = (e: any) => {
@@ -544,6 +544,12 @@ const Counter = () => {
                         <a className="p-button p-component p-button-outlined p-button-icon-left">
                             <i className="pi pi-users p-button-icon p-button-icon-left"></i>
                             <span className="p-button-label">Lista de clientes</span>
+                        </a>
+                    </Link>
+                    <Link href="/listproduct" passHref legacyBehavior>
+                        <a className="p-button p-component p-button-outlined p-button-icon-left">
+                            <i className="pi pi-cart-plus p-button-icon p-button-icon-left"></i>
+                            <span className="p-button-label">Lista de productos</span>
                         </a>
                     </Link>
                     <Button label="Lista de cotizaciones" icon="pi pi-list" outlined onClick={() => setShowQuotesList(true)} />

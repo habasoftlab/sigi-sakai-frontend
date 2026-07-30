@@ -1,15 +1,15 @@
 import { NuevaOrdenRequest, AvanzarEstatusRequest } from '@/app/types/orders';
+import { apiClient } from './apiClient';
 
-const ORDERS_API = process.env.NEXT_PUBLIC_ORDERS_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_IMAGE_URL = process.env.NEXT_PUBLIC_IMAGE_API_URL;
 
-const IMAGE_API = process.env.NEXT_PUBLIC_IMAGE_API_URL;
 
 export const OrderService = {
 
     async crearOrden(data: NuevaOrdenRequest) {
-        const res = await fetch(`${ORDERS_API}/ordenes`, {
+        const res = await apiClient(`${API_BASE_URL}/ordenes`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
         if (!res.ok) throw new Error('Error al crear la orden');
@@ -17,9 +17,8 @@ export const OrderService = {
     },
 
     async cancelarOrden(idOrden: number, idRazon: number, idUsuario: number) {
-        const res = await fetch(`${ORDERS_API}/ordenes/${idOrden}/cancelar`, {
+        const res = await apiClient(`${API_BASE_URL}/ordenes/${idOrden}/cancelar`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 idRazon: idRazon,
                 idUsuario: idUsuario
@@ -34,9 +33,8 @@ export const OrderService = {
     },
 
     async updateCondicionPago(idOrden: number, idCondicion: number) {
-        const response = await fetch(`${ORDERS_API}/ordenes/${idOrden}/condicion-pago`, {
+        const response = await apiClient(`${API_BASE_URL}/ordenes/${idOrden}/condicion-pago`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ idCondicionPago: idCondicion })
         });
         if (!response.ok) {
@@ -51,9 +49,8 @@ export const OrderService = {
     },
 
     async updateNotasDiseno(idOrden: number, notas: string) {
-        const res = await fetch(`${ORDERS_API}/ordenes/${idOrden}/notas-diseno`, {
+        const res = await apiClient(`${API_BASE_URL}/ordenes/${idOrden}/notas-diseno`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ notasDiseno: notas })
         });
         if (!res.ok) throw new Error('Error al actualizar notas de diseño');
@@ -63,9 +60,10 @@ export const OrderService = {
     async subirArchivo(idOrden: number, archivo: File) {
         const formData = new FormData();
         formData.append('file', archivo);
-        const res = await fetch(`${ORDERS_API}/ordenes/${idOrden}/archivo`, {
+
+        const res = await apiClient(`${API_BASE_URL}/ordenes/${idOrden}/archivo`, {
             method: 'POST',
-            body: formData
+            body: formData // No enviamos Content-Type para que el navegador genere el multipart/form-data
         });
         if (!res.ok) {
             throw new Error('Error al subir el archivo');
@@ -77,13 +75,22 @@ export const OrderService = {
         if (!filename || filename === 'Pendiente' || filename.trim() === '') {
             return null;
         }
-        return `${IMAGE_API}/uploads/${filename}?t=${Date.now()}`;
+        try {
+            const res = await apiClient(`${API_IMAGE_URL}/uploads/${filename}`);
+            if (!res.ok) {
+                return null;
+            }
+            const imageBlob = await res.blob();
+            return URL.createObjectURL(imageBlob);
+        } catch (error) {
+            console.error('Error al obtener la imagen:', error);
+            return null;
+        }
     },
 
     async registrarPago(idOrden: number, pago: { monto: number; referencia: string; idUsuario: number }) {
-        const res = await fetch(`${ORDERS_API}/ordenes/${idOrden}/pagos`, {
+        const res = await apiClient(`${API_BASE_URL}/ordenes/${idOrden}/pagos`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(pago)
         });
         if (!res.ok) throw new Error('Error al registrar pago');
@@ -91,9 +98,8 @@ export const OrderService = {
     },
 
     async avanzarEstatus(idOrden: number, body: AvanzarEstatusRequest) {
-        const res = await fetch(`${ORDERS_API}/ordenes/${idOrden}/avanzar`, {
+        const res = await apiClient(`${API_BASE_URL}/ordenes/${idOrden}/avanzar`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
         if (!res.ok) throw new Error('Error al actualizar estatus');
@@ -101,9 +107,8 @@ export const OrderService = {
     },
 
     async crearSolicitudCompra(data: any) {
-        const res = await fetch(`${ORDERS_API}/compras/solicitar`, {
+        const res = await apiClient(`${API_BASE_URL}/compras/solicitar`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
         if (!res.ok) throw new Error('Error creating purchase request');
@@ -111,13 +116,13 @@ export const OrderService = {
     },
 
     async getHistorial(idOrden: number) {
-        const res = await fetch(`${ORDERS_API}/ordenes/${idOrden}/historial`);
+        const res = await apiClient(`${API_BASE_URL}/ordenes/${idOrden}/historial`);
         if (!res.ok) throw new Error('Error al obtener historial');
         return await res.json();
     },
 
     async getRazonesCancelacion() {
-        const res = await fetch(`${ORDERS_API}/operaciones/razones-cancelacion`);
+        const res = await apiClient(`${API_BASE_URL}/operaciones/razones-cancelacion`);
         if (!res.ok) throw new Error('Error al obtener razones de cancelación');
         return await res.json();
     },
@@ -127,7 +132,7 @@ export const OrderService = {
             page: page.toString(),
             size: size.toString(),
         });
-        const response = await fetch(`${ORDERS_API}/ordenes?${params.toString()}&sort=idOrden,desc`);
+        const response = await apiClient(`${API_BASE_URL}/ordenes?${params.toString()}&sort=idOrden,desc`);
         if (!response.ok) {
             throw new Error("Error al obtener lista de órdenes");
         }
@@ -135,13 +140,13 @@ export const OrderService = {
     },
 
     async getOrdenById(id: number) {
-        const res = await fetch(`${ORDERS_API}/ordenes/${id}`);
+        const res = await apiClient(`${API_BASE_URL}/ordenes/${id}`);
         if (!res.ok) throw new Error("Error obteniendo orden");
         return await res.json();
     },
 
     async getEstatusOperaciones() {
-        const res = await fetch(`${ORDERS_API}/operaciones/estatus`);
+        const res = await apiClient(`${API_BASE_URL}/operaciones/estatus`);
         if (!res.ok) throw new Error("Error cargando catálogo de estatus");
         return await res.json();
     },
@@ -151,7 +156,7 @@ export const OrderService = {
             page: page.toString(),
             size: size.toString(),
         });
-        const response = await fetch(`${ORDERS_API}/ordenes/activas?${params.toString()}`);
+        const response = await apiClient(`${API_BASE_URL}/ordenes/activas?${params.toString()}`);
         if (!response.ok) throw new Error("Error al obtener órdenes activas");
         return await response.json();
     },
@@ -161,7 +166,7 @@ export const OrderService = {
             page: page.toString(),
             size: size.toString(),
         });
-        const response = await fetch(`${ORDERS_API}/ordenes/cotizacion-cancelacion?${params.toString()}`);
+        const response = await apiClient(`${API_BASE_URL}/ordenes/cotizacion-cancelacion?${params.toString()}`);
         if (!response.ok) throw new Error("Error al obtener cotizaciones");
         return await response.json();
     },
@@ -171,7 +176,7 @@ export const OrderService = {
             page: page.toString(),
             size: size.toString(),
         });
-        const response = await fetch(`${ORDERS_API}/ordenes/por-disenador/${idDisenador}?${params.toString()}`);
+        const response = await apiClient(`${API_BASE_URL}/ordenes/por-disenador/${idDisenador}?${params.toString()}`);
 
         if (!response.ok) {
             throw new Error("Error al obtener órdenes del diseñador");
