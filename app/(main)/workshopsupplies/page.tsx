@@ -199,6 +199,19 @@ const SuppliesVerificationPage = () => {
     if (loading) return <div className="flex justify-content-center align-items-center h-screen"><i className="pi pi-spin pi-spinner text-4xl"></i></div>;
     if (!orderData) return <div className="p-4 text-center">No se encontró la orden.</div>;
 
+    const renderCantidadRequerida = (rowData: any) => (
+        <span className="text-600">
+            {rowData.cantidad} {rowData.unidad}
+        </span>
+    );
+
+    const renderPresentacion = (rowData: any) => {
+        const esPaquete = rowData.cantidadPaquete > 1;
+        const textoPresentacion = esPaquete ? `Paq. de ${rowData.cantidadPaquete}` : 'Unitario';
+
+        return <span className="text-sm text-blue-600">{textoPresentacion}</span>;
+    };
+
     return (
         <div className="grid justify-content-center">
             <Toast ref={toast} />
@@ -313,20 +326,18 @@ const SuppliesVerificationPage = () => {
                             <Column field="nombreProducto" header="Producto de la Orden"></Column>
 
                             <Column
-                                field="cantidad"
+                                field="Cantidad"
                                 header="Requerido"
-                                body={(d) => <span className="text-600">{d.cantidad} {d.unidad}</span>}
-                                style={{ width: '15%' }}
-                            ></Column>
+                                body={renderCantidadRequerida}
+                            />
 
                             <Column
                                 header="Presentación"
-                                body={(d) => <span className="text-sm text-blue-600">{d.cantidadPaquete > 1 ? `Paq. de ${d.cantidadPaquete}` : 'Unitario'}</span>}
-                                style={{ width: '15%' }}
-                            ></Column>
+                                body={renderPresentacion}
+                            />
 
                             <Column
-                                header="Cantidad a Pedir"
+                                header="Cantidad a pedir"
                                 body={quantityInputTemplate}
                                 style={{ width: '25%' }}
                             ></Column>

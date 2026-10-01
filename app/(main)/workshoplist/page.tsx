@@ -50,26 +50,17 @@ const WorkshopListPage = () => {
             clientsData.forEach((client) => {
                 if (client.id) clientMap.set(client.id, client.nombre);
             });
+
+                const resolverWorkshopStatus = (insumosVerificados: boolean, idEstatusActual: number): WorkshopStatus => {
+                    if (insumosVerificados) return 'confirmed';
+                    if (idEstatusActual === 2) return 'pending';
+                    return 'delayed';
+                };
+
             const processedOrders = activeOrdersOnly.map((order: any) => {
                 const resolvedClientName = clientMap.get(order.idCliente) || `Cliente #${order.idCliente}`;
-
-                let status: WorkshopStatus = 'pending';
-
-                // --- LÓGICA DE ESTATUS ---
-                // 1. Si ya tiene insumos verificados (TRUE), siempre es VERDE.
-                if (order.insumosVerificados) {
-                    status = 'confirmed';
-                }
-                // 2. Si es una orden nueva (Estatus 2) y no tiene insumos, es AZUL (Pendiente de revisar).
-                else if (order.idEstatusActual === 2) {
-                    status = 'pending';
-                }
-                // 3. Si ya avanzó (Estatus 4, 7, 8, 9) y NO tiene insumos, es ROJO (Retrasado/Faltante).
-                else {
-                    status = 'delayed';
-                }
-
-                const hasFile = order.rutaArchivo && order.rutaArchivo !== 'Pendiente';
+                const workshopStatus = resolverWorkshopStatus(order.insumosVerificados, order.idEstatusActual);
+                const hasFile = Boolean(order.rutaArchivo && order.rutaArchivo !== 'Pendiente');
                 const isStatusReady = order.idEstatusActual === 9 || order.idEstatusActual === 5;
                 const hasSuppliesVerified = order.insumosVerificados === true;
                 const canPrint = hasFile && hasSuppliesVerified && isStatusReady;
@@ -77,8 +68,8 @@ const WorkshopListPage = () => {
                 return {
                     ...order,
                     clienteNombre: resolvedClientName,
-                    workshopStatus: status,
-                    canPrint: canPrint
+                    workshopStatus,
+                    canPrint
                 };
             });
 

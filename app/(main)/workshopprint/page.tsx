@@ -167,6 +167,19 @@ const PrintOrderPage = () => {
 
     const statusInfo = getStatusInfo(orderData.idEstatusActual);
 
+    const renderCantidadColumn = (rowData: any) => (
+        <div className="flex flex-column align-items-center">
+            <span className="font-bold text-lg text-900">{rowData.cantidad}</span>
+        </div>
+    );
+
+    const renderMedidasColumn = (rowData: any) => (
+        <span className="text-blue-600 font-bold">
+            <i className="pi pi-arrows-h mr-1 text-sm"></i>
+            {rowData.medidas}
+        </span>
+    );
+
     return (
         <div className="grid justify-content-center">
             <Toast ref={toast} />
@@ -202,15 +215,14 @@ const PrintOrderPage = () => {
                                         field="cantidad"
                                         header="Cant."
                                         style={{ width: '20%' }}
-                                        body={(d) => <div className="flex flex-column align-items-center"><span className="font-bold text-lg text-900">{d.cantidad}</span></div>}
-                                        className="text-center"
+                                        body={renderCantidadColumn}
                                     />
                                     <Column field="nombreProducto" header="Producto" style={{ width: '40%' }} />
                                     <Column
                                         field="medidas"
                                         header="Medidas"
                                         style={{ width: '40%' }}
-                                        body={(d) => <span className="text-blue-600 font-bold"><i className="pi pi-arrows-h mr-1 text-sm"></i>{d.medidas}</span>}
+                                        body={renderMedidasColumn}
                                     />
                                 </DataTable>
                             </div>

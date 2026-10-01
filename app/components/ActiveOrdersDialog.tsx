@@ -42,6 +42,40 @@ export const ActiveOrdersDialog = (props: ActiveOrdersDialogProps) => {
         );
     };
 
+    const renderSaldoColumn = (rowData: any) => {
+        const saldo = rowData.saldoPendiente !== undefined
+            ? rowData.saldoPendiente
+            : (rowData.montoTotal - (rowData.montoPagado || 0));
+
+        const isPending = saldo > 0.5;
+
+        return (
+            <span className={isPending ? 'text-red-500 font-bold' : 'text-green-500 font-bold'}>
+                ${saldo.toFixed(2)}
+            </span>
+        );
+    };
+
+    const renderPagosColumn = (rowData: any) => {
+        const saldo = rowData.saldoPendiente !== undefined
+            ? rowData.saldoPendiente
+            : (rowData.montoTotal - (rowData.montoPagado || 0));
+
+        if (saldo > 0.5) {
+            return (
+                <Button
+                    label="Abonar"
+                    icon="pi pi-dollar"
+                    severity="success"
+                    size="small"
+                    onClick={() => onQuickPay(rowData)}
+                />
+            );
+        }
+
+        return <Tag severity="success" value="Pagado" icon="pi pi-check" />;
+    };
+
     return (
         <Dialog
             header="Lista de Órdenes en Curso"
@@ -90,24 +124,12 @@ export const ActiveOrdersDialog = (props: ActiveOrdersDialogProps) => {
                     field="saldoPendiente"
                     header="Saldo"
                     className="text-right"
-                    body={(d) => {
-                        const saldo = d.saldoPendiente !== undefined ? d.saldoPendiente : (d.montoTotal - (d.montoPagado || 0));
-                        return (
-                            <span className={saldo > 0.5 ? 'text-red-500 font-bold' : 'text-green-500 font-bold'}>
-                                ${saldo.toFixed(2)}
-                            </span>
-                        );
-                    }}
+                    body={renderSaldoColumn}
                 />
                 <Column
                     header="Pagos"
                     style={{ textAlign: 'center', width: '15%' }}
-                    body={(data) => {
-                        const saldo = data.saldoPendiente !== undefined ? data.saldoPendiente : (data.montoTotal - (data.montoPagado || 0));
-                        return saldo > 0.5 ?
-                            <Button label="Abonar" icon="pi pi-dollar" severity="success" size="small" onClick={() => onQuickPay(data)} /> :
-                            <Tag severity="success" value="Pagado" icon="pi pi-check" />;
-                    }}
+                    body={renderPagosColumn}
                 />
             </DataTable>
         </Dialog>

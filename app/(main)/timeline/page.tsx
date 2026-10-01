@@ -135,6 +135,34 @@ const OrderTimelinePage = () => {
         );
     };
 
+    const renderTimelineContent = () => {
+        if (loading) {
+            return (
+                <div className="flex justify-content-center py-6">
+                    <i className="pi pi-spin pi-spinner text-4xl text-primary"></i>
+                </div>
+            );
+        }
+
+        if (events.length > 0) {
+            return (
+                <Timeline
+                    value={events}
+                    align="alternate"
+                    className="customized-timeline"
+                    marker={customizedMarker}
+                    content={customizedContent}
+                />
+            );
+        }
+        return (
+            <div className="text-center p-5 border-1 border-dashed border-300 border-round">
+                <i className="pi pi-info-circle text-4xl text-gray-400 mb-3"></i>
+                <p className="text-gray-600 m-0">No hay historial registrado para esta orden.</p>
+            </div>
+        );
+    };
+
     return (
         <div className="card">
             <Toast ref={toast} />
@@ -151,25 +179,7 @@ const OrderTimelinePage = () => {
                     onClick={() => router.push(backPath)}
                 />
             </div>
-
-            {loading ? (
-                <div className="flex justify-content-center py-6">
-                    <i className="pi pi-spin pi-spinner text-4xl text-primary"></i>
-                </div>
-            ) : events.length > 0 ? (
-                <Timeline
-                    value={events}
-                    align="alternate"
-                    className="customized-timeline"
-                    marker={customizedMarker}
-                    content={customizedContent}
-                />
-            ) : (
-                <div className="text-center p-5 border-1 border-dashed border-300 border-round">
-                    <i className="pi pi-info-circle text-4xl text-gray-400 mb-3"></i>
-                    <p className="text-gray-600 m-0">No hay historial registrado para esta orden.</p>
-                </div>
-            )}
+            {renderTimelineContent()}
         </div>
     );
 };

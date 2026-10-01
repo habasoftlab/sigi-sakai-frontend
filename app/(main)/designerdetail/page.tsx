@@ -227,183 +227,246 @@ const DesignerOrderDetailPage = () => {
     };
 
     // --- RENDERIZADO DEL ÁREA DE ACCIÓN ---
+    // 1. Componente para Estatus 2 (Bloqueado)
+    const renderBlockedCard = () => (
+        <Card className="mb-4 shadow-2 border-left-3 border-yellow-500 bg-yellow-50">
+            <div className="flex align-items-center gap-4">
+                <i className="pi pi-lock text-4xl text-yellow-600"></i>
+                <div>
+                    <h2 className="text-yellow-800 m-0 mb-2">Orden Bloqueada</h2>
+                    <p className="text-yellow-700 m-0 font-medium">Esperando verificación de insumos del Taller.</p>
+                </div>
+            </div>
+        </Card>
+    );
+
+    // 2. Componente para Estatus 7, 3, 4 (Desarrollo)
+    const renderDevelopmentCard = ({
+        uploadedFile,
+        setUploadedFile,
+        handleUploadOnly,
+        sendToReview,
+        isSubmitting,
+        hasFile
+    }: any) => (
+        <Card title="Entrega de Diseño" className="mb-4 shadow-2">
+            <p className="text-600 mb-4 text-sm">Sube el archivo de diseño para enviarlo a revisión del cliente.</p>
+            <div className="grid">
+                <div className="col-12 md:col-6 flex flex-column gap-3">
+                    <div className="border-1 border-round surface-border p-3 bg-50 text-center">
+                        <FileUpload
+                            mode="basic"
+                            name="demo[]"
+                            accept="image/*,application/pdf"
+                            maxFileSize={50000000}
+                            chooseLabel={uploadedFile ? "Cambiar" : "Seleccionar"}
+                            className={`w-full ${uploadedFile ? 'p-button-info' : 'p-button-outlined p-button-secondary'}`}
+                            customUpload auto={false} uploadHandler={() => { }}
+                            onSelect={(e) => e.files[0] && setUploadedFile(e.files[0])}
+                        />
+                        {uploadedFile && (
+                            <Button
+                                label="Subir Ahora"
+                                icon="pi pi-save"
+                                className="w-full mt-2 p-button-outlined p-button-sm"
+                                onClick={handleUploadOnly}
+                                loading={isSubmitting}
+                            />
+                        )}
+                    </div>
+                </div>
+                <div className="col-12 md:col-6 flex align-items-center">
+                    <Button
+                        label="Enviar a Revisión"
+                        icon="pi pi-send"
+                        className="w-full p-button-lg h-full"
+                        onClick={sendToReview}
+                        loading={isSubmitting}
+                        disabled={!hasFile}
+                    />
+                </div>
+            </div>
+        </Card>
+    );
+
+    // 3. Componente para Estatus 10 (Rechazado)
+    const renderCorrectionCard = ({
+        uploadedFile,
+        setUploadedFile,
+        handleUploadOnly,
+        sendToReview,
+        isSubmitting,
+        hasFile
+    }: any) => (
+        <Card className="mb-4 shadow-2 border-top-3 border-red-500">
+            <div className="flex align-items-center mb-4 text-red-700">
+                <i className="pi pi-exclamation-circle text-2xl mr-2"></i>
+                <h2 className="m-0 text-xl font-bold">Diseño Rechazado - Requiere Correcciones</h2>
+            </div>
+
+            <div className="grid">
+                <div className="col-12 md:col-6 flex flex-column gap-3">
+                    <div className="border-1 border-round surface-border p-3 bg-red-50 text-center">
+                        <span className="text-red-600 text-sm font-bold block mb-2">Subir Nueva Versión</span>
+                        <FileUpload
+                            mode="basic"
+                            name="demo[]"
+                            accept="image/*,application/pdf"
+                            maxFileSize={50000000}
+                            chooseLabel={uploadedFile ? "Archivo Seleccionado" : "Subir Corrección"}
+                            className={`w-full ${uploadedFile ? 'p-button-danger' : 'p-button-outlined p-button-danger'}`}
+                            customUpload auto={false} uploadHandler={() => { }}
+                            onSelect={(e) => e.files[0] && setUploadedFile(e.files[0])}
+                        />
+                        {uploadedFile && (
+                            <Button
+                                label="Guardar Corrección"
+                                icon="pi pi-save"
+                                severity="danger"
+                                className="w-full mt-2 p-button-outlined p-button-sm"
+                                onClick={handleUploadOnly}
+                                loading={isSubmitting}
+                            />
+                        )}
+                    </div>
+                </div>
+                <div className="col-12 md:col-6 flex align-items-center">
+                    <Button
+                        label="Enviar Correcciones a Revisión"
+                        icon="pi pi-refresh"
+                        severity="danger"
+                        className="w-full p-button-lg h-full shadow-2"
+                        onClick={sendToReview}
+                        loading={isSubmitting}
+                        disabled={!hasFile}
+                    />
+                </div>
+            </div>
+        </Card>
+    );
+
+    // 4. Componente para Estatus 8 (Revisión)
+    const renderReviewCard = ({
+        registerDecision,
+        isSubmitting,
+        uploadedFile,
+        setUploadedFile,
+        handleUploadOnly
+    }: any) => (
+        <Card title="Respuesta del Cliente" className="mb-4 shadow-2 border-left-3 border-orange-500">
+            <div className="text-center mb-4">
+                <span className="text-xl font-bold text-700">El cliente está revisando. ¿Cuál fue su respuesta?</span>
+            </div>
+            <div className="grid">
+                <div className="col-12 md:col-6">
+                    <Button
+                        label="Rechazado (Corregir)"
+                        icon="pi pi-times"
+                        severity="danger"
+                        className="w-full py-4 text-xl shadow-2"
+                        onClick={() => registerDecision(false)}
+                        loading={isSubmitting}
+                    />
+                </div>
+                <div className="col-12 md:col-6">
+                    <Button
+                        label="Aprobado (Finalizar)"
+                        icon="pi pi-check"
+                        severity="success"
+                        className="w-full py-4 text-xl shadow-2"
+                        onClick={() => registerDecision(true)}
+                        loading={isSubmitting}
+                    />
+                </div>
+                <div className="col-12 mt-3 text-center">
+                    <small className="text-500 block mb-2">¿Cambio menor antes de aprobar?</small>
+                    <FileUpload
+                        mode="basic"
+                        chooseLabel="Actualizar Archivo"
+                        className="p-button-outlined p-button-secondary p-button-sm"
+                        customUpload auto={false} onSelect={(e) => e.files[0] && setUploadedFile(e.files[0])}
+                    />
+                    {uploadedFile && <Button icon="pi pi-upload" className="ml-2" onClick={handleUploadOnly} loading={isSubmitting} />}
+                </div>
+            </div>
+        </Card>
+    );
+
+    // 5. Componente para Estatus 9 (Aprobado)
+    const renderApprovedCard = () => (
+        <Card className="mb-4 shadow-2 bg-green-50 border-left-3 border-green-500">
+            <div className="flex flex-column align-items-center justify-content-center text-center">
+                <i className="pi pi-check-circle text-5xl text-green-600 mb-3"></i>
+                <h2 className="text-green-800 m-0 mb-2">Diseño Aprobado</h2>
+                <p className="text-green-700 mb-4">La orden está lista para pasar a producción.</p>
+                <Link href="/designerlist">
+                    <Button label="Volver a la Lista" icon="pi pi-arrow-left" severity="success" text />
+                </Link>
+            </div>
+        </Card>
+    );
+
     const renderActionArea = () => {
         const estatus = Number(orderData.idEstatusActual);
+        const hasFile = Boolean(orderData.rutaArchivo || uploadedFile);
 
-        // CASO BLOQUEADO: ESTATUS 2
-        if (estatus === 2) {
-            return (
-                <Card className="mb-4 shadow-2 border-left-3 border-yellow-500 bg-yellow-50">
-                    <div className="flex align-items-center gap-4">
-                        <i className="pi pi-lock text-4xl text-yellow-600"></i>
-                        <div>
-                            <h2 className="text-yellow-800 m-0 mb-2">Orden Bloqueada</h2>
-                            <p className="text-yellow-700 m-0 font-medium">Esperando verificación de insumos del Taller.</p>
-                        </div>
-                    </div>
-                </Card>
-            );
+        switch (estatus) {
+            case 2:
+                return renderBlockedCard();
+
+            case 3:
+            case 4:
+            case 7:
+                return renderDevelopmentCard({
+                    uploadedFile,
+                    setUploadedFile,
+                    handleUploadOnly,
+                    sendToReview,
+                    isSubmitting,
+                    hasFile
+                });
+
+            case 10:
+                return renderCorrectionCard({
+                    uploadedFile,
+                    setUploadedFile,
+                    handleUploadOnly,
+                    sendToReview,
+                    isSubmitting,
+                    hasFile
+                });
+
+            case 8:
+                return renderReviewCard({
+                    registerDecision,
+                    isSubmitting,
+                    uploadedFile,
+                    setUploadedFile,
+                    handleUploadOnly
+                });
+
+            case 9:
+                return renderApprovedCard();
+
+            default:
+                return null;
         }
-
-        // FASE 1: DESARROLLO (Subir y Enviar)
-        if (estatus === 7 || estatus === 3 || estatus === 4) {
-            return (
-                <Card title="Entrega de Diseño" className="mb-4 shadow-2">
-                    <p className="text-600 mb-4 text-sm">Sube el archivo de diseño para enviarlo a revisión del cliente.</p>
-                    <div className="grid">
-                        <div className="col-12 md:col-6 flex flex-column gap-3">
-                            <div className="border-1 border-round surface-border p-3 bg-50 text-center">
-                                <FileUpload
-                                    mode="basic"
-                                    name="demo[]"
-                                    accept="image/*,application/pdf"
-                                    maxFileSize={50000000}
-                                    chooseLabel={uploadedFile ? "Cambiar" : "Seleccionar"}
-                                    className={`w-full ${uploadedFile ? 'p-button-info' : 'p-button-outlined p-button-secondary'}`}
-                                    customUpload auto={false} uploadHandler={() => { }}
-                                    onSelect={(e) => e.files[0] && setUploadedFile(e.files[0])}
-                                />
-                                {uploadedFile && (
-                                    <Button
-                                        label="Subir Ahora"
-                                        icon="pi pi-save"
-                                        className="w-full mt-2 p-button-outlined p-button-sm"
-                                        onClick={handleUploadOnly}
-                                        loading={isSubmitting}
-                                    />
-                                )}
-                            </div>
-                        </div>
-                        <div className="col-12 md:col-6 flex align-items-center">
-                            <Button
-                                label="Enviar a Revisión"
-                                icon="pi pi-send"
-                                className="w-full p-button-lg h-full"
-                                onClick={sendToReview}
-                                loading={isSubmitting}
-                                disabled={!orderData.rutaArchivo && !uploadedFile}
-                            />
-                        </div>
-                    </div>
-                </Card>
-            );
-        }
-
-        // FASE 1.5: CORRECCIÓN (Estatus 10 - Rechazado)
-        if (estatus === 10) {
-            return (
-                <Card className="mb-4 shadow-2 border-top-3 border-red-500">
-                    <div className="flex align-items-center mb-4 text-red-700">
-                        <i className="pi pi-exclamation-circle text-2xl mr-2"></i>
-                        <h2 className="m-0 text-xl font-bold">Diseño Rechazado - Requiere Correcciones</h2>
-                    </div>
-
-                    <div className="grid">
-                        <div className="col-12 md:col-6 flex flex-column gap-3">
-                            <div className="border-1 border-round surface-border p-3 bg-red-50 text-center">
-                                <span className="text-red-600 text-sm font-bold block mb-2">Subir Nueva Versión</span>
-                                <FileUpload
-                                    mode="basic"
-                                    name="demo[]"
-                                    accept="image/*,application/pdf"
-                                    maxFileSize={50000000}
-                                    chooseLabel={uploadedFile ? "Archivo Seleccionado" : "Subir Corrección"}
-                                    className={`w-full ${uploadedFile ? 'p-button-danger' : 'p-button-outlined p-button-danger'}`}
-                                    customUpload auto={false} uploadHandler={() => { }}
-                                    onSelect={(e) => e.files[0] && setUploadedFile(e.files[0])}
-                                />
-                                {uploadedFile && (
-                                    <Button
-                                        label="Guardar Corrección"
-                                        icon="pi pi-save"
-                                        severity="danger"
-                                        className="w-full mt-2 p-button-outlined p-button-sm"
-                                        onClick={handleUploadOnly}
-                                        loading={isSubmitting}
-                                    />
-                                )}
-                            </div>
-                        </div>
-                        <div className="col-12 md:col-6 flex align-items-center">
-                            <Button
-                                label="Enviar Correcciones a Revisión"
-                                icon="pi pi-refresh"
-                                severity="danger"
-                                className="w-full p-button-lg h-full shadow-2"
-                                onClick={sendToReview}
-                                loading={isSubmitting}
-                                disabled={!orderData.rutaArchivo && !uploadedFile}
-                            />
-                        </div>
-                    </div>
-                </Card>
-            );
-        }
-
-        // FASE 2: REVISIÓN
-        if (estatus === 8) {
-            return (
-                <Card title="Respuesta del Cliente" className="mb-4 shadow-2 border-left-3 border-orange-500">
-                    <div className="text-center mb-4">
-                        <span className="text-xl font-bold text-700">El cliente está revisando. ¿Cuál fue su respuesta?</span>
-                    </div>
-                    <div className="grid">
-                        <div className="col-12 md:col-6">
-                            <Button
-                                label="Rechazado (Corregir)"
-                                icon="pi pi-times"
-                                severity="danger"
-                                className="w-full py-4 text-xl shadow-2"
-                                onClick={() => registerDecision(false)}
-                                loading={isSubmitting}
-                            />
-                        </div>
-                        <div className="col-12 md:col-6">
-                            <Button
-                                label="Aprobado (Finalizar)"
-                                icon="pi pi-check"
-                                severity="success"
-                                className="w-full py-4 text-xl shadow-2"
-                                onClick={() => registerDecision(true)}
-                                loading={isSubmitting}
-                            />
-                        </div>
-                        {/* Opción de corrección menor */}
-                        <div className="col-12 mt-3 text-center">
-                            <small className="text-500 block mb-2">¿Cambio menor antes de aprobar?</small>
-                            <FileUpload
-                                mode="basic"
-                                chooseLabel="Actualizar Archivo"
-                                className="p-button-outlined p-button-secondary p-button-sm"
-                                customUpload auto={false} onSelect={(e) => e.files[0] && setUploadedFile(e.files[0])}
-                            />
-                            {uploadedFile && <Button icon="pi pi-upload" className="ml-2" onClick={handleUploadOnly} loading={isSubmitting} />}
-                        </div>
-                    </div>
-                </Card>
-            );
-        }
-
-        // FASE 3: APROBADO
-        if (estatus === 9) {
-            return (
-                <Card className="mb-4 shadow-2 bg-green-50 border-left-3 border-green-500">
-                    <div className="flex flex-column align-items-center justify-content-center text-center">
-                        <i className="pi pi-check-circle text-5xl text-green-600 mb-3"></i>
-                        <h2 className="text-green-800 m-0 mb-2">Diseño Aprobado</h2>
-                        <p className="text-green-700 mb-4">La orden está lista para pasar a producción.</p>
-                        <Link href="/designerlist">
-                            <Button label="Volver a la Lista" icon="pi pi-arrow-left" severity="success" text />
-                        </Link>
-                    </div>
-                </Card>
-            );
-        }
-
-        return null;
     };
 
     if (loading || !orderData) return <div className="flex justify-content-center h-screen align-items-center"><i className="pi pi-spin pi-spinner text-4xl"></i></div>;
+
+    const renderMedidas = (rowData: any) => (
+        <span className="text-blue-600 font-bold">
+            <i className="pi pi-arrows-h mr-1 text-sm"></i>
+            {rowData.medidas}
+        </span>
+    );
+
+    const renderCantidad = (rowData: any) => (
+        <div className="flex flex-column align-items-center">
+            <span className="font-bold text-lg text-900">{rowData.cantidad}</span>
+        </div>
+    );
 
     return (
         <div className="grid justify-content-center">
@@ -422,7 +485,6 @@ const DesignerOrderDetailPage = () => {
                             <h1 className="m-0 text-3xl font-bold">Orden N° {orderId}</h1>
                             <span className="text-500">Fecha de entrega: {orderData.fechaEntregaFormal || 'Pendiente'}</span>
                             <div className="mt-2">
-                                {/* CORRECCIÓN: Usamos getStatusLabel para el texto descriptivo */}
                                 <Tag
                                     severity={getSeverity(Number(orderData.idEstatusActual))}
                                     value={getStatusLabel(Number(orderData.idEstatusActual))}
@@ -444,9 +506,20 @@ const DesignerOrderDetailPage = () => {
                             <div className="p-2 border-1 surface-border border-round bg-50">
                                 <h3 className="text-lg font-bold m-0 mb-2 p-2 text-700">Especificaciones</h3>
                                 <DataTable value={orderItems} size="small" responsiveLayout="scroll" className="p-datatable-sm" emptyMessage="Sin productos">
-                                    <Column field="cantidad" header="Cant." style={{ width: '20%' }} body={(d) => <div className="flex flex-column align-items-center"><span className="font-bold text-lg text-900">{d.cantidad}</span></div>} className="text-center"></Column>
+                                    <Column
+                                        field="cantidad"
+                                        header="Cant."
+                                        style={{ width: '20%' }}
+                                        body={renderCantidad}
+                                        className="text-center"
+                                    />
                                     <Column field="nombreProducto" header="Producto" style={{ width: '40%' }}></Column>
-                                    <Column field="medidas" header="Medidas" style={{ width: '40%' }} body={(d) => <span className="text-blue-600 font-bold"><i className="pi pi-arrows-h mr-1 text-sm"></i>{d.medidas}</span>}></Column>
+                                    <Column
+                                        field="medidas"
+                                        header="Medidas"
+                                        style={{ width: '40%' }}
+                                        body={renderMedidas}
+                                    />
                                 </DataTable>
                             </div>
                             <div className="grid mt-2">
@@ -477,8 +550,18 @@ const DesignerOrderDetailPage = () => {
                                     <div className="flex flex-column align-items-center justify-content-center text-gray-400"><i className="pi pi-image text-5xl mb-2"></i><span className="text-sm text-center px-4">{imageError ? "Archivo no encontrado" : "Sin archivo"}</span></div>
                                 )}
                             </div>
-                            {orderData.rutaArchivo && orderData.rutaArchivo !== 'Pendiente' && (
-                                <div className="mt-3 text-center"><a href={imageUrl!} target="_blank" rel="noopener noreferrer" className="p-button p-button-sm p-button-outlined p-button-secondary text-xs no-underline"><i className="pi pi-external-link mr-2"></i>Abrir en pestaña nueva</a></div>
+                            {imageUrl && (
+                                <div className="mt-3 text-center">
+                                    <a
+                                        href={imageUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="p-button p-button-sm p-button-outlined p-button-secondary text-xs no-underline"
+                                    >
+                                        <i className="pi pi-external-link mr-2"></i>
+                                        Abrir en pestaña nueva
+                                    </a>
+                                </div>
                             )}
                         </div>
                     </div>
