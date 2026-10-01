@@ -4,10 +4,8 @@ import { InputText } from 'primereact/inputtext';
 import { InputNumber, InputNumberValueChangeEvent } from 'primereact/inputnumber';
 import { Button } from 'primereact/button';
 import { classNames } from 'primereact/utils';
-
-// 1. IMPORTAMOS LA INTERFAZ GLOBAL EN LUGAR DE REPETIRLA AQUÍ
-import { Producto } from '@/app/types/orders'; 
-import { CatalogService } from '@/app/service/catalogService'; 
+import { Producto } from '@/app/types/orders';
+import { CatalogService } from '@/app/service/catalogService';
 
 interface ProductFormDialogProps {
     visible: boolean;
@@ -16,9 +14,8 @@ interface ProductFormDialogProps {
     productToEdit: Producto | null;
 }
 
-// 2. Valores por defecto (usamos null o 0 según lo que tu interfaz global permita)
 const emptyProduct: Producto = {
-    idProducto: null,
+    idProducto: 0,
     nombre: '',
     descripcion: '',
     precioUnitario: 0,
@@ -28,7 +25,7 @@ const emptyProduct: Producto = {
     formatoTamano: '',
     unidadVenta: '',
     tirajeMinimo: 1,
-    volumenDescuentoCantidad: 0 // Si tu tipo global permite null, también puedes poner null aquí
+    volumenDescuentoCantidad: 0
 };
 
 export const ProductFormDialog = ({ visible, onHide, onSuccess, productToEdit }: ProductFormDialogProps) => {

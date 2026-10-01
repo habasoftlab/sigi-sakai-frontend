@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, createContext } from 'react';
+import React, { useState, createContext, useMemo } from 'react';
 import { LayoutState, ChildContainerProps, LayoutConfig, LayoutContextProps } from '@/types';
 export const LayoutContext = createContext({} as LayoutContextProps);
 
@@ -46,14 +46,25 @@ export const LayoutProvider = ({ children }: ChildContainerProps) => {
         return window.innerWidth > 991;
     };
 
-    const value: LayoutContextProps = {
+    const value: LayoutContextProps = useMemo(() => ({
         layoutConfig,
         setLayoutConfig,
         layoutState,
         setLayoutState,
         onMenuToggle,
         showProfileSidebar
-    };
+    }), [
+        layoutConfig,
+        setLayoutConfig,
+        layoutState,
+        setLayoutState,
+        onMenuToggle,
+        showProfileSidebar
+    ]);
 
-    return <LayoutContext.Provider value={value}>{children}</LayoutContext.Provider>;
+    return (
+        <LayoutContext.Provider value={value}>
+            {children}
+        </LayoutContext.Provider>
+    );
 };

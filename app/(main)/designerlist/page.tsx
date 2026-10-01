@@ -15,7 +15,7 @@ import { ClientService } from '@/app/service/clientService';
 const DesignerListPage = () => {
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    
+
     const [clientMap, setClientMap] = useState<Record<number, string>>({});
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [userName, setUserName] = useState('');
@@ -65,7 +65,7 @@ const DesignerListPage = () => {
         try {
             if (!currentUserId) return
             const response = await OrderService.getOrdenesPorDisenador(currentUserId, 0, 1000);
-            
+
             let listaObtenida = response.content || response || [];
 
             listaObtenida.sort((a: any, b: any) => {
@@ -101,7 +101,7 @@ const DesignerListPage = () => {
 
     const statusBodyTemplate = (rowData: any) => {
         const estatusId = rowData.idEstatusActual;
-        let severity: "danger" | "success" | "info" | "warning" | null = 'info';
+        let severity: "danger" | "success" | "info" | "warning" = 'info';
         let icon = 'pi pi-cog';
         if (estatusId === 10) {
             severity = 'danger';
@@ -110,7 +110,6 @@ const DesignerListPage = () => {
             severity = 'warning';
             icon = 'pi pi-palette';
         } else if (estatusId === 3 || estatusId === 4) {
-            severity = 'info';
             icon = 'pi pi-clock';
         }
 
@@ -137,6 +136,15 @@ const DesignerListPage = () => {
                 tooltipOptions={{ position: 'top' }}
                 onClick={() => router.push(`/designerdetail?id=${rowData.idOrden}`)}
             />
+        );
+    };
+
+    const renderFecha = (rowData: any) => {
+        const fecha = rowData.fechaEntregaFormal || rowData.fechaCreacion;
+        return (
+            <span className="font-semibold text-700">
+                {fecha ? new Date(fecha).toLocaleDateString() : 'N/A'}
+            </span>
         );
     };
 
@@ -177,13 +185,8 @@ const DesignerListPage = () => {
                         <Column field="idOrden" header="Folio" sortable style={{ width: '8%' }} className="font-bold" />
                         <Column
                             field="fechaEntregaFormal"
-                            header="Entrega"
-                            sortable
-                            body={(d) => {
-                                const fecha = d.fechaEntregaFormal || d.fechaCreacion;
-                                return <span className="font-semibold text-700">{new Date(fecha).toLocaleDateString()}</span>;
-                            }}
-                            style={{ width: '12%' }}
+                            header="Fecha"
+                            body={renderFecha}
                         />
                         <Column header="Cliente" body={clientBodyTemplate} style={{ width: '25%' }} />
                         <Column header="Estatus" body={statusBodyTemplate} sortable field="idEstatusActual" style={{ width: '20%' }} />

@@ -26,7 +26,16 @@ const LoginPage = () => {
         { 'p-input-filled': layoutConfig.inputStyle === 'filled' }
     );
 
-const handleLogin = async () => {
+    const OBTENER_RUTA_INICIAL = (permisos: string[] = []): string => {
+        if (permisos.includes('VER_DASHBOARD')) return '/';
+        if (permisos.includes('VER_PANEL_DISENO')) return '/designerlist';
+        if (permisos.includes('VER_PANEL_TALLER')) return '/workshoplist';
+        if (permisos.includes('GESTIONAR_COTIZACIONES')) return '/counter';
+        if (permisos.includes('GESTIONAR_ORDENES')) return '/listorder';
+        return '/pages/access';
+    };
+
+    const handleLogin = async () => {
         if (!email || !password) {
             toast.current?.show({ severity: 'warn', summary: 'Atención', detail: 'Ingresa correo y contraseña' });
             return;
@@ -37,36 +46,31 @@ const handleLogin = async () => {
         try {
             const credentials: LoginRequest = { email, password };
             const data = await AuthService.login(credentials);
+
             if (data.status === 401 || data.error) {
                 throw new Error(data.message || 'Credenciales inválidas');
             }
-            if (data.token) {
-                localStorage.setItem('token', data.token);
-                const userInfo = {
-                    idUsuario: data.idUsuario,
-                    email: email,
-                    rol: data.rol,
-                    permisos: data.permisos
-                };
-                localStorage.setItem('user', JSON.stringify(userInfo));
-                toast.current?.show({
-                    severity: 'success',
-                    summary: 'Bienvenido',
-                    detail: `Iniciando como ${data.rol}...`
-                });
-                
-                setTimeout(() => {
-                    const permisos = data.permisos || [];
-                    if (permisos.includes('VER_DASHBOARD')) router.push('/');
-                    else if (permisos.includes('VER_PANEL_DISENO')) router.push('/designerlist');
-                    else if (permisos.includes('VER_PANEL_TALLER')) router.push('/workshoplist');
-                    else if (permisos.includes('GESTIONAR_COTIZACIONES')) router.push('/counter');
-                    else if (permisos.includes('GESTIONAR_ORDENES')) router.push('/listorder');
-                    else router.push('/pages/access');
-                }, 700);
-            } else {
+
+            if (!data.token) {
                 throw new Error('No se recibió respuesta válida del servidor.');
             }
+
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify({
+                idUsuario: data.idUsuario,
+                email,
+                rol: data.rol,
+                permisos: data.permisos
+            }));
+
+            toast.current?.show({
+                severity: 'success',
+                summary: 'Bienvenido',
+                detail: `Iniciando como ${data.rol}...`
+            });
+
+            const targetPath = OBTENER_RUTA_INICIAL(data.permisos);
+            setTimeout(() => router.push(targetPath), 700);
 
         } catch (error: any) {
             console.error("Error en Login:", error);

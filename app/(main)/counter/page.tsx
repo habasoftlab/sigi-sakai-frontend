@@ -75,8 +75,8 @@ const Counter = () => {
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [pendingProduct, setPendingProduct] = useState<Producto | null>(null);
     // LÓGICA DE PAGOS (Para Modal Orden)
-    const [paymentType, setPaymentType] = useState<'unico' | 'anticipo' | 'plazos'>('unico');
-    const [advanceAmount, setAdvanceAmount] = useState<number>(0);
+    const [, setPaymentType] = useState<'unico' | 'anticipo' | 'plazos'>('unico');
+    const [, setAdvanceAmount] = useState<number>(0);
     const [activeOrderCondition, setActiveOrderCondition] = useState<number>(1);
     // Filtros y Toast
     const toast = useRef<Toast>(null);
@@ -186,13 +186,11 @@ const Counter = () => {
                 label: u.nombre,
                 value: u.idUsuario
             }));
-            setDesigners([
-                { label: '--- Sin Asignar (Pendiente) ---', value: null },
-                ...options
-            ]);
+            setDesigners(options);
+
         } catch (error) {
             console.error("Error cargando diseñadores", error);
-            setDesigners([{ label: '--- Sin Asignar (Pendiente) ---', value: null }]);
+            setDesigners([]);
         }
     };
 
@@ -209,69 +207,88 @@ const Counter = () => {
         }
     };
 
+    // 1. Extrae la lógica del nombre del diseñador
+    const resolverNombreDisenador = (idUsuarioDisenador: number | null, diseñadores: any[]): string => {
+        if (idUsuarioDisenador === null) return 'Sin asginar';
+        const designerObj = diseñadores.find(d => d.value == idUsuarioDisenador);
+        return designerObj ? designerObj.label : `Diseñador ID: ${idUsuarioDisenador}`;
+    };
+
+    // 2. Extrae la lógica para enriquecer la orden
+    const enriquecerOrden = (order: any, diseñadores: any[], mapEstatus: any) => {
+        const nombreGrupo = resolverNombreDisenador(order.idUsuarioDisenador, diseñadores);
+        const estatusNombre = mapEstatus?.[order.idEstatusActual] ?? `Estatus ${order.idEstatusActual}`;
+
+        return {
+            ...order,
+            nombreDisenador: nombreGrupo,
+            saldoPendiente: (order.montoTotal || 0) - (order.montoPagado || 0),
+            estatusNombre
+        };
+    };
+
+    // 3. Extrae el filtrado de filas expandidas iniciales
+    const obtenerFilasExpandidasIniciales = (data: any[]) => {
+        const initialExpandedRows: any[] = [];
+        const addedGroups = new Set();
+
+        data.forEach((row) => {
+            if (!addedGroups.has(row.nombreDisenador)) {
+                addedGroups.add(row.nombreDisenador);
+                initialExpandedRows.push(row);
+            }
+        });
+
+        return initialExpandedRows;
+    };
+
+    // --- FUNCIÓN PRINCIPAL REFACTORIZADA ---
     const loadOrderHistory = async (pageToLoad = lazyParams.page, pageSize = lazyParams.rows) => {
         setIsLoadingList(true);
+
         try {
-            const response = await OrderService.getOrdenes(pageToLoad, pageSize);
-            const data = (response as any).content || [];
-            const pageInfo = (response as any).page;
-            if (pageInfo) {
-                setTotalRecords(pageInfo.totalElements);
+            const response: any = await OrderService.getOrdenes(pageToLoad, pageSize);
+            const data = response?.content || [];
+
+            if (response?.page) {
+                setTotalRecords(response.page.totalElements);
             }
-            if (!data || data.length === 0) {
+
+            if (data.length === 0) {
                 setQuotesList([]);
                 setOrdersList([]);
                 return;
             }
-            let listaDiseñadoresParaMapeo = designers;
-            if (listaDiseñadoresParaMapeo.length <= 1) {
+
+            // Obtener diseñadores si no están cargados
+            let listaDiseñadores = designers;
+            if (listaDiseñadores.length <= 1) {
                 try {
                     const rawDesigners = await UserService.getDesigners();
                     const options = rawDesigners.map((u: any) => ({ label: u.nombre, value: u.idUsuario }));
-                    listaDiseñadoresParaMapeo = [{ label: '--PENDIENTE DE ASIGNACIÓN--', value: null }, ...options];
-                    setDesigners(listaDiseñadoresParaMapeo);
-                } catch (err) { console.error(err); }
-            }
-            let enrichedData = data.map((order: any) => {
-                const designerObj = listaDiseñadoresParaMapeo.find(d => d.value == order.idUsuarioDisenador);
-                let nombreGrupo = '';
-                if (order.idUsuarioDisenador === null) nombreGrupo = '--PENDIENTE DE ASIGNACIÓN--';
-                else if (designerObj) nombreGrupo = designerObj.label;
-                else nombreGrupo = `Diseñador ID: ${order.idUsuarioDisenador}`;
-                const estatusNombre = (statusMap && statusMap[order.idEstatusActual])
-                    ? statusMap[order.idEstatusActual]
-                    : `Estatus ${order.idEstatusActual}`;
-                return {
-                    ...order,
-                    nombreDisenador: nombreGrupo,
-                    saldoPendiente: (order.montoTotal || 0) - (order.montoPagado || 0),
-                    estatusNombre: estatusNombre
-                };
-            });
-            enrichedData.sort((a: any, b: any) => {
-                if (a.nombreDisenador < b.nombreDisenador) return -1;
-                if (a.nombreDisenador > b.nombreDisenador) return 1;
-                return 0;
-            });
-            const initialExpandedRows: any[] = [];
-            const addedGroups = new Set();
-            enrichedData.forEach((row: any) => {
-                const groupKey = row.nombreDisenador;
-                if (!addedGroups.has(groupKey)) {
-                    addedGroups.add(groupKey);
-                    initialExpandedRows.push(row);
+                    listaDiseñadores = [{ label: 'Sin asignar', value: null }, ...options];
+                    setDesigners(listaDiseñadores);
+                } catch (err) {
+                    console.error(err);
                 }
-            });
-            setExpandedRows(initialExpandedRows);
+            }
+
+            // Enriquecer y ordenar
+            const enrichedData = data.map((order: any) => enriquecerOrden(order, listaDiseñadores, statusMap));
+
+            enrichedData.sort((a: any, b: any) => a.nombreDisenador.localeCompare(b.nombreDisenador));
+
+            // Establecer estados de la UI
+            setExpandedRows(obtenerFilasExpandidasIniciales(enrichedData));
             setQuotesList(enrichedData.filter((o: any) => o.idEstatusActual === 1));
             setOrdersList(enrichedData.filter((o: any) => o.idEstatusActual !== 1));
+
         } catch (error) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar el historial' });
         } finally {
             setIsLoadingList(false);
         }
     };
-
     const loadProductsCatalog = async () => {
         try {
             const data = await CatalogService.getAllProductos();
@@ -292,7 +309,20 @@ const Counter = () => {
     };
 
     const handleCreateQuote = async () => {
-        if (!assignedClient) { toast.current?.show({ severity: 'warn', detail: 'Asigna un cliente' }); return; }
+        if (!assignedClient) {
+            toast.current?.show({
+                severity: 'warn',
+                detail: 'Asigna un cliente'
+            });
+            return;
+        }
+        if (!selectedDesigner) {
+            toast.current?.show({
+                severity: 'warn',
+                detail: 'Selecciona un diseñador'
+            });
+            return;
+        }
         const nuevaOrden: NuevaOrdenRequest = {
             orden: {
                 idUsuario: currentUserId,
@@ -315,7 +345,7 @@ const Counter = () => {
         };
         try {
             await OrderService.crearOrden(nuevaOrden);
-            toast.current?.show({ severity: 'success', summary: 'Cotización Guardada', detail: 'Disponible en la lista.' });
+            toast.current?.show({ severity: 'success', summary: 'Cotización guardada', detail: 'Disponible en la lista.' });
             setShowQuoteSummary(false);
             handleClearScreen();
             await loadOrderHistory();
@@ -495,44 +525,67 @@ const Counter = () => {
     };
 
     type TipoPago = 'unico' | 'anticipo' | 'plazos';
-    const calcularSugerenciaPago = (orden: any) => {
+
+    // Te sugiero definir una interfaz en lugar de usar `any` para evitar advertencias de TypeScript
+    interface OrdenPago {
+        montoTotal: number;
+        montoPagado: number;
+        idCondicionPago: number;
+    }
+
+    const calcularSugerenciaPago = (orden: OrdenPago) => {
         const saldoPendiente = orden.montoTotal - orden.montoPagado;
-        let tipoVisual: TipoPago = 'unico';
-        let montoSugerido = saldoPendiente;
+        let tipoVisual: TipoPago;
+        let montoSugerido: number;
+
         switch (orden.idCondicionPago) {
-            case 1:
-                tipoVisual = 'unico';
-                montoSugerido = saldoPendiente;
-                break;
-
-            case 2:
+            case 2: {
                 tipoVisual = 'anticipo';
-                if (orden.montoPagado >= (orden.montoTotal * 0.19)) {
-                    montoSugerido = saldoPendiente;
-                } else {
-                    montoSugerido = orden.montoTotal * 0.50;
-                }
+                const yaPagoMinimo = orden.montoPagado >= (orden.montoTotal * 0.19);
+                montoSugerido = yaPagoMinimo ? saldoPendiente : orden.montoTotal * 0.50;
                 break;
+            }
 
-            case 3:
+            case 3: {
                 tipoVisual = 'plazos';
                 const pago50 = orden.montoTotal * 0.50;
                 montoSugerido = Math.min(pago50, saldoPendiente);
                 break;
+            }
 
-            case 4:
+            case 4: {
                 tipoVisual = 'plazos';
                 const pago33 = orden.montoTotal / 3;
                 montoSugerido = Math.min(pago33, saldoPendiente);
                 break;
+            }
 
+            case 1:
             default:
                 tipoVisual = 'unico';
                 montoSugerido = saldoPendiente;
+                break;
         }
+
         montoSugerido = Math.max(0, Math.min(montoSugerido, saldoPendiente));
         return { tipoVisual, montoSugerido };
     };
+
+    const renderImporte = (d: any) => (
+        <span className="text-green-700 text-lg">
+            ${d.importe.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
+    );
+
+    const renderActionColumn = (rowData: any) => (
+        <Button
+            icon="pi pi-trash"
+            rounded
+            text
+            severity="danger"
+            onClick={() => handleDelete(rowData)}
+        />
+    );
 
     return (
         <>
@@ -588,15 +641,10 @@ const Counter = () => {
                     <Column field="cantidad" header="Cantidad" style={{ width: '15%' }} />
                     <Column
                         field="importe"
-                        header="Total"
-                        body={(d) => (
-                            <span className="text-green-700 text-lg">
-                                ${d.importe.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
-                        )}
-                        style={{ width: '15%', fontWeight: 'bold', textAlign: 'right' }}
+                        header="Importe"
+                        body={renderImporte}
                     />
-                    <Column body={(d) => <Button icon="pi pi-trash" rounded text severity="danger" onClick={() => handleDelete(d)} />} style={{ width: '8%' }} />
+                    <Column body={renderActionColumn} style={{ width: '8%' }} />
                 </DataTable>
 
                 <div className="flex justify-content-end mt-4 align-items-center gap-4">

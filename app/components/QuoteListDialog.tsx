@@ -41,6 +41,21 @@ export const QuoteListDialog = (props: QuoteListDialogProps) => {
         );
     };
 
+    const renderFolioColumn = (rowData: any) => (
+        <span className="font-bold">#{rowData.idOrden}</span>
+    );
+
+    const renderAccionColumn = (rowData: any) => (
+        <Button
+            label="Retomar"
+            icon="pi pi-arrow-right"
+            size="small"
+            severity="info"
+            onClick={() => onRetake(rowData)}
+            tooltip="Ver detalles y editar"
+        />
+    );
+
     return (
         <Dialog
             header="Lista de Cotizaciones"
@@ -76,7 +91,7 @@ export const QuoteListDialog = (props: QuoteListDialogProps) => {
                     field="idOrden"
                     header="Folio"
                     style={{ width: '10%' }}
-                    body={(rowData) => <span className="font-bold">#{rowData.idOrden}</span>}
+                    body={renderFolioColumn}
                 />
                 <Column
                     field="fechaCreacion"
@@ -103,16 +118,7 @@ export const QuoteListDialog = (props: QuoteListDialogProps) => {
                 <Column
                     header="Acción"
                     style={{ width: '15%', textAlign: 'center' }}
-                    body={(data) => (
-                        <Button
-                            label="Retomar"
-                            icon="pi pi-arrow-right"
-                            size="small"
-                            severity="info"
-                            onClick={() => onRetake(data)}
-                            tooltip="Ver detalles y editar"
-                        />
-                    )}
+                    body={renderAccionColumn}
                 />
             </DataTable>
         </Dialog>

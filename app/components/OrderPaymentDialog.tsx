@@ -24,13 +24,41 @@ interface OrderPaymentDialogProps {
     onNotesChange: (val: string) => void;
 }
 
+export type PaymentType = 'unico' | 'anticipo' | 'plazos';
+
 export interface PaymentData {
     amount: number;
-    paymentType: 'unico' | 'anticipo' | 'plazos';
-    notes: string; // Referencia del pago
+    paymentType: PaymentType;
+    notes: string;
     conditionId: number;
     file: File | null;
 }
+
+const calcularTipoPago = (conditionId: number): PaymentType => {
+    if (conditionId === 2) return 'anticipo';
+    if (conditionId === 3 || conditionId === 4) return 'plazos';
+    return 'unico';
+};
+
+const calcularMontoSugerido = (
+    type: PaymentType,
+    saldo: number,
+    total: number,
+    paidAmount: number,
+    conditionId: number
+): number => {
+    if (type === 'unico') {
+        return saldo;
+    }
+
+    if (type === 'anticipo') {
+        return paidAmount >= total * 0.19 ? saldo : total * 0.5;
+    }
+
+    const divisor = conditionId === 3 || total >= 3000 ? 3 : 2;
+    const letra = total / divisor;
+    return Math.min(letra, saldo);
+};
 
 export const OrderPaymentDialog = (props: OrderPaymentDialogProps) => {
     const {
@@ -46,35 +74,27 @@ export const OrderPaymentDialog = (props: OrderPaymentDialogProps) => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     useEffect(() => {
-        if (visible) {
-            setPaymentReference('');
-            setSelectedFile(null);
-            const saldo = total - paidAmount;
-            let initialType: 'unico' | 'anticipo' | 'plazos' = 'unico';
-            if (currentConditionId === 2) {
-                initialType = 'anticipo';
-            } else if (currentConditionId === 3 || currentConditionId === 4) {
-                initialType = 'plazos';
-            } else {
-                initialType = 'unico';
-            }
-            setPaymentType(initialType);
-            let montoSugerido = 0;
-            if (initialType === 'unico') {
-                montoSugerido = saldo;
-            } else if (initialType === 'anticipo') {
-                if (paidAmount >= (total * 0.19)) {
-                    montoSugerido = saldo;
-                } else {
-                    montoSugerido = total * 0.50;
-                }
-            } else if (initialType === 'plazos') {
-                const divisor = (currentConditionId === 3) || (total >= 3000) ? 3 : 2;
-                const letra = total / divisor;
-                montoSugerido = Math.min(letra, saldo);
-            }
-            setAdvanceAmount(Number(Math.max(0, montoSugerido).toFixed(2)));
-        }
+        if (!visible) return;
+
+        setPaymentReference('');
+        setSelectedFile(null);
+        const totalSeguro = total ?? 0;
+        const paidAmountSeguro = paidAmount ?? 0;
+        const conditionIdSeguro = currentConditionId ?? 0;
+
+        const saldo = totalSeguro - paidAmountSeguro;
+        const initialType = calcularTipoPago(conditionIdSeguro);
+
+        setPaymentType(initialType);
+
+        const montoSugerido = calcularMontoSugerido(
+            initialType,
+            saldo,
+            totalSeguro,
+            paidAmountSeguro,
+            conditionIdSeguro
+        );
+        setAdvanceAmount(Number(Math.max(0, montoSugerido).toFixed(2)));
     }, [visible, total, paidAmount, currentConditionId]);
 
     const handleQuickSet = (type: 'unico' | 'anticipo' | 'plazos') => {
@@ -161,7 +181,7 @@ export const OrderPaymentDialog = (props: OrderPaymentDialogProps) => {
                         <div className="mb-4">
                             <label className="font-bold block mb-2 text-900">
                                 <i className="pi pi-pencil mr-2 text-primary"></i>
-                                Notas / Instrucciones de Diseño
+                                Notas de diseño
                             </label>
                             <InputTextarea
                                 value={notes || ''}

@@ -111,7 +111,7 @@ export const OrderService = {
             method: 'POST',
             body: JSON.stringify(data)
         });
-        if (!res.ok) throw new Error('Error creating purchase request');
+        if (!res.ok) throw new Error('Error creando solicitud de compra');
         return await res.json();
     },
 

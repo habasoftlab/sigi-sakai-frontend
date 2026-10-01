@@ -10,13 +10,12 @@ import { FilterMatchMode } from 'primereact/api';
 import { Tag } from 'primereact/tag';
 import Link from 'next/link';
 
-// Asegúrate de que la ruta coincida con donde guardaste el componente
 import { ProductFormDialog } from "@/app/components/ProductFormDialog";
 import { CatalogService } from "@/app/service/catalogService";
 import { Producto } from "@/app/types/orders";
 
 const initialProduct: Producto = {
-    idProducto: null,
+    idProducto: 0,
     nombre: '',
     descripcion: '',
     precioUnitario: 0,
@@ -137,6 +136,13 @@ const ListProductsPage = () => {
         </>
     );
 
+    const renderTiempoProduccion = (rowData: any) => (
+        <Tag
+            value={`${rowData.tiempoProduccionDias || 0} días`}
+            severity="info"
+        />
+    );
+
     return (
         <div className="card">
             <Toast ref={toast} />
@@ -164,18 +170,12 @@ const ListProductsPage = () => {
                 dataKey="idProducto"
             >
                 <Column field="descripcion" header="Descripción" sortable style={{ minWidth: '15rem' }} />
-                {/* Se usa el nuevo formatCurrency protegido contra nulls */}
                 <Column field="precioUnitario" header="P. Unitario" body={(p) => formatCurrency(p.precioUnitario)} sortable />
                 <Column field="precioPaquete" header="P. Paquete" body={(p) => formatCurrency(p.precioPaquete)} sortable />
                 <Column field="cantidadPaquete" header="Cant. Paq." sortable className="text-center" />
                 <Column field="formatoTamano" header="Tamaño" sortable />
                 <Column field="unidadVenta" header="Unidad" sortable />
-                <Column
-                    field="tiempoProduccionDias"
-                    header="Entrega"
-                    body={(p) => <Tag value={`${p.tiempoProduccionDias || 0} días`} severity="info" />}
-                    sortable
-                />
+                <Column field="tiempoProduccionDias" header="Tiempo de Producción" body={renderTiempoProduccion} />
                 <Column body={actionBodyTemplate} exportable={false} style={{ minWidth: '8rem', textAlign: 'center' }} />
             </DataTable>
 

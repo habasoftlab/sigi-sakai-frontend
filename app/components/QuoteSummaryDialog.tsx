@@ -33,6 +33,12 @@ export const QuoteSummaryDialog = (props: QuoteSummaryDialogProps) => {
         requiresBilling, onToggleBilling, onConfirm
     } = props;
 
+    const renderNombreProducto = (rowData: any) => (
+        <span className="font-semibold">
+            {rowData.descripcion || rowData.nombre || "Producto"}
+        </span>
+    );
+
     return (
         <Dialog
             header="Confirmar Nueva Cotización"
@@ -46,13 +52,10 @@ export const QuoteSummaryDialog = (props: QuoteSummaryDialogProps) => {
                 <div className="col-12 md:col-8">
                     <DataTable value={items} responsiveLayout="scroll" size="small" showGridlines stripedRows>
                         <Column
-                            header="Descripción del producto"
-                            body={(rowData) => (
-                                <span className="font-semibold">
-                                    {rowData.descripcion || rowData.nombre || "Producto"}
-                                </span>
-                            )}
-                        ></Column>
+                            field="descripcion"
+                            header="Producto"
+                            body={renderNombreProducto}
+                        />
                         <Column field="cantidad" header="Cantidad" body={(item) => `${item.cantidad} u`} className="text-center"></Column>
                         <Column field="importe" header="Importe" body={(item) => `$${item.importe.toFixed(2)}`} className="text-right font-bold"></Column>
                     </DataTable>
