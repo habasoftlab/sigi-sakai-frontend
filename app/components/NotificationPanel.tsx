@@ -40,11 +40,17 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
     const extractOrderId = (n: Notificacion): string | null => {
         const notifAny = n as any;
 
+        // 1. Revisar propiedades directas
         if (notifAny.idOrden) return String(notifAny.idOrden);
         if (notifAny.ordenId) return String(notifAny.ordenId);
         if (notifAny.referenciaId) return String(notifAny.referenciaId);
 
-        const textToSearch = `${n.titulo || ''} ${n.mensaje || ''}`;
+        // 2. Revisar dentro del objeto anidado 'contenido'
+        if (notifAny.contenido?.idOrden) return String(notifAny.contenido.idOrden);
+        if (notifAny.contenido?.ordenId) return String(notifAny.contenido.ordenId);
+
+        // 3. Búsqueda por Expresión Regular (#12 u orden 12) en título o mensaje
+        const textToSearch = `${n.titulo || ''} ${n.mensaje || ''} ${notifAny.contenido?.mensaje || ''}`;
 
         const hashMatch = textToSearch.match(/#(\d+)/);
         if (hashMatch) return hashMatch[1];
@@ -55,29 +61,21 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
         return null;
     };
 
-    const handleItemClick = (n: Notificacion) => {
-        console.log('--- Clic detectado en notificación ---');
-        console.log('Notificación completa:', n);
-
+const handleItemClick = (n: Notificacion) => {
         const orderId = extractOrderId(n);
-        console.log('ID de orden extraído:', orderId);
 
+        // 1. Cerrar el panel flotante
         if (onCloseOverlay) {
             onCloseOverlay();
         }
 
-        onMarkAsRead(n.id);
-
-        if (orderId) {
-            const targetUrl = n.categoria === 'SOLICITUD_INSUMOS'
-                ? `/receipt?id=${orderId}`
-                : `/ordenes/detalle?id=${orderId}`;
-
-            console.log('Ejecutando router.push a:', targetUrl);
-            router.push(targetUrl);
-        } else {
-            console.warn('No se pudo extraer un ID de orden válido.');
+        // 2. Redirigir ÚNICAMENTE si es una Solicitud de Insumos
+        if (n.categoria === 'SOLICITUD_INSUMOS' && orderId) {
+            router.push(`/receipt?id=${orderId}`);
         }
+
+        // 3. Marcar como leída sin importar la categoría
+        onMarkAsRead(n.id);
     };
 
     const renderNotificationContent = () => {
