@@ -25,7 +25,6 @@ export class NotificationSocketService {
         this.socket = new WebSocket(this.wsUrl);
 
         this.socket.onopen = () => {
-            console.log('WebSocket conectado correctamente');
             this.reconnectAttempts = 0;
             this.socket?.send(JSON.stringify({ type: 'INIT_SESSION', userId: this.userId }));
         };

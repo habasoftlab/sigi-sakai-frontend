@@ -277,15 +277,32 @@ const SuppliesVerificationPage = () => {
                     <div className="text-center">
                         <h2 className="text-2xl font-bold mt-0 mb-2">¿Están completos los insumos?</h2>
                         <p className="text-600 mb-5">Verifica físicamente en almacén antes de confirmar.</p>
-
-                        <div className="flex flex-column md:flex-row gap-4 justify-content-center px-4 pb-2">
-                            <Button className="p-button-success p-button-lg flex-1 py-5" onClick={handleConfirmSupplies} loading={isSubmitting} disabled={isSubmitting}>
-                                <i className="pi pi-check-circle text-5xl mb-3"></i>
-                                <span className="font-bold text-xl">Confirmar existencia</span>
+                        <div className="flex flex-column md:flex-row gap-3 justify-content-center align-items-stretch px-4 pb-3">
+                            <Button
+                                className="p-button-success p-button-lg flex-1 py-4"
+                                onClick={handleConfirmSupplies}
+                                loading={isSubmitting}
+                                disabled={isSubmitting}
+                            >
+                                <div className="flex flex-column align-items-center justify-content-center gap-3 w-full">
+                                    <i className="pi pi-check-circle text-4xl"></i>
+                                    <span className="font-bold text-xl text-center">
+                                        Confirmar existencia
+                                    </span>
+                                </div>
                             </Button>
-                            <Button className="p-button-danger p-button-outlined p-button-lg flex-1 py-5" onClick={handleMissingSupplies} disabled={isSubmitting}>
-                                <i className="pi pi-exclamation-triangle text-5xl mb-3"></i>
-                                <span className="font-bold text-xl">Falta material</span>
+
+                            <Button
+                                className="p-button-danger p-button-lg flex-1 py-4"
+                                onClick={handleMissingSupplies}
+                                disabled={isSubmitting}
+                            >
+                                <div className="flex flex-column align-items-center justify-content-center gap-3 w-full">
+                                    <i className="pi pi-exclamation-triangle text-4xl"></i>
+                                    <span className="font-bold text-xl text-center">
+                                        Falta material
+                                    </span>
+                                </div>
                             </Button>
                         </div>
                     </div>

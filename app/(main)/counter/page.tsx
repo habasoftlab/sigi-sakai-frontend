@@ -242,7 +242,7 @@ const Counter = () => {
         return initialExpandedRows;
     };
 
-    // --- FUNCIÓN PRINCIPAL REFACTORIZADA ---
+    // --- FUNCIÓN PRINCIPAL ---
     const loadOrderHistory = async (pageToLoad = lazyParams.page, pageSize = lazyParams.rows) => {
         setIsLoadingList(true);
 
