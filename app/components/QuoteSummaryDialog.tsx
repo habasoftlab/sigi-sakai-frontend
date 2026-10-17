@@ -65,7 +65,7 @@ export const QuoteSummaryDialog = (props: QuoteSummaryDialogProps) => {
                         <div className="text-xl font-bold text-900">
                             Total: <span className="text-primary text-2xl ml-2">${total.toFixed(2)}</span>
                         </div>
-                        <div className="text-600 flex align-items-center gap-2 bg-yellow-50 p-2 border-round">
+                        <div className="text-600 flex align-items-center gap-2 p-2 border-round">
                             <i className="pi pi-clock text-orange-500"></i>
                             <span className="font-medium">Producción estimada: {productionTime} días hábiles</span>
                         </div>

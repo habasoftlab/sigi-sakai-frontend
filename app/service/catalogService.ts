@@ -80,8 +80,8 @@ export const CatalogService = {
     },
 
     async deleteProducto(id: number): Promise<boolean> {
-        const res = await apiClient(`${API_BASE_URL}/productos/${id}`, { 
-            method: 'DELETE' 
+        const res = await apiClient(`${API_BASE_URL}/productos/${id}`, {
+            method: 'DELETE'
         });
         if (!res.ok) throw new Error("Error al eliminar producto");
         return true;

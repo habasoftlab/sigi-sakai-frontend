@@ -4,6 +4,21 @@ import { apiClient } from './apiClient';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_IMAGE_URL = process.env.NEXT_PUBLIC_IMAGE_API_URL;
 
+export interface DetalleOrdenDTO {
+    idDetalle: number;
+    idProducto: number;
+    cantidad: number;
+    precioUnitario: number;
+    importe: number;
+}
+
+export interface OrdenDTO {
+    idOrden: number;
+    idCliente: number;
+    fechaCreacion: string;
+    montoTotal: number;
+    detalles: DetalleOrdenDTO[];
+}
 
 export const OrderService = {
 
