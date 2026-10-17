@@ -648,7 +648,7 @@ const Counter = () => {
                 </DataTable>
 
                 <div className="flex justify-content-end mt-4 align-items-center gap-4">
-                    <h3 className="m-0 text-gray-700">Total: ${currentCartTotal.toFixed(2)}</h3>
+                    <h3 className="m-0 text-700">Total: ${currentCartTotal.toFixed(2)}</h3>
                     <Button label="Cotizar" icon="pi pi-money-bill" className="p-button-lg" onClick={() => setShowQuoteSummary(true)} disabled={quoteItems.length === 0} />
                 </div>
 

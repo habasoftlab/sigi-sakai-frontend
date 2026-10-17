@@ -6,12 +6,15 @@ import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
+import { SelectButton } from 'primereact/selectbutton';
 import { FilterMatchMode } from 'primereact/api';
 import Link from 'next/link';
+
 import { ClientService } from "@/app/service/clientService";
 import { CatalogService } from "@/app/service/catalogService";
-import { Client } from "@/app/types/clients";
+import { Client, TipoClienteFiltro } from "@/app/types/clients";
 import { ClientFormDialog } from "@/app/components/ClientFormDialog";
+import { UltimaCompraDialog } from "@/app/components/LastPurchaseDialog";
 
 const initialClient: Client = {
     id: null,
@@ -23,10 +26,16 @@ interface DropdownOption { label: string; value: number; }
 
 const ListClientsPage = () => {
     const [clients, setClients] = useState<Client[]>([]);
+    const [tipoFiltro, setTipoFiltro] = useState<TipoClienteFiltro>('todos');
     const [clientDialog, setClientDialog] = useState(false);
     const [deleteClientDialog, setDeleteClientDialog] = useState(false);
     const [client, setClient] = useState<Client>(initialClient);
     const [loading, setLoading] = useState(false);
+
+    // Estado para la modal de última compra
+    const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+    const [ultimaCompraDialog, setUltimaCompraDialog] = useState(false);
+
     const [globalFilterValue, setGlobalFilterValue] = useState('');
     const [filters, setFilters] = useState({ global: { value: null, matchMode: FilterMatchMode.CONTAINS } });
     const [regimenOptions, setRegimenOptions] = useState<DropdownOption[]>([]);
@@ -34,22 +43,22 @@ const ListClientsPage = () => {
 
     const toast = useRef<Toast>(null);
 
-    useEffect(() => {
-        loadClients();
-        loadCatalogs();
-    }, []);
+    const filtroOptions = [
+        { label: 'Todos', value: 'todos' },
+        { label: 'Mostrador', value: 'mostrador' },
+        { label: 'Fiscales', value: 'factura' }
+    ];
 
-    const loadClients = async () => {
+    useEffect(() => {
+        loadClients(tipoFiltro);
+        loadCatalogs();
+    }, [tipoFiltro]);
+
+    const loadClients = async (tipo: TipoClienteFiltro) => {
         setLoading(true);
         try {
-            const data = await ClientService.getAll();
-            const normalized = data.map((c: any) => ({
-                ...c,
-                id: c.idCliente || c.id || null,
-                nombre: c.nombre ?? '',
-                razonSocial: c.razonSocial ?? c.nombre ?? '',
-            }));
-            setClients(normalized);
+            const data = await ClientService.getAll(tipo);
+            setClients(data);
         } catch (err) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar los clientes' });
         } finally {
@@ -63,32 +72,34 @@ const ListClientsPage = () => {
                 CatalogService.getRegimenesFiscales(),
                 CatalogService.getUsosCfdi()
             ]);
-            setRegimenOptions(regimenesData.map(r => ({ label: `${r.clave} - ${r.descripcion}`, value: r.idRegimen })));
-            setCfdiOptions(usosData.map(u => ({ label: `${u.clave} - ${u.descripcion}`, value: u.idUsoCfdi })));
-        } catch (error) { console.error("Error cargando catálogos", error); }
+            setRegimenOptions(regimenesData.map((r: any) => ({ label: `${r.clave} - ${r.descripcion}`, value: r.idRegimen })));
+            setCfdiOptions(usosData.map((u: any) => ({ label: `${u.clave} - ${u.descripcion}`, value: u.idUsoCfdi })));
+        } catch (error) {
+            console.error("Error cargando catálogos", error);
+        }
     };
 
-    // Funciones para abrir Dialog
+    const handleVerUltimaCompra = (c: Client) => {
+        if (!c.id) return;
+        setSelectedClientId(c.id);
+        setUltimaCompraDialog(true);
+    };
+
     const openNew = () => {
-        setClient({ ...initialClient }); // Limpia el estado para nuevo
+        setClient({ ...initialClient });
         setClientDialog(true);
     };
 
     const editClient = (c: Client) => {
-        setClient({ ...c }); // Carga el cliente a editar en el estado
+        setClient({ ...c });
         setClientDialog(true);
     };
 
-    const hideDialog = () => {
+    const handleClientSaved = () => {
+        loadClients(tipoFiltro);
         setClientDialog(false);
     };
 
-    const handleClientSaved = () => {
-        loadClients(); // Recargar tabla
-        setClientDialog(false); // Cerrar modal
-    };
-
-    // Funciones para Borrar
     const confirmDeleteClient = (c: Client) => {
         setClient(c);
         setDeleteClientDialog(true);
@@ -107,7 +118,6 @@ const ListClientsPage = () => {
         }
     };
 
-    // Helpers UI
     const onGlobalFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         let _filters = { ...filters };
@@ -117,25 +127,59 @@ const ListClientsPage = () => {
         setGlobalFilterValue(value);
     };
 
-    const getRegimenLabel = (id: number | null) => regimenOptions.find(op => op.value === id)?.label || '';
-    const getCfdiLabel = (id: number | null) => cfdiOptions.find(op => op.value === id)?.label || '';
+    const getRegimenLabel = (id: number | null) => regimenOptions.find(op => op.value === id)?.label || '-';
+    const getCfdiLabel = (id: number | null) => cfdiOptions.find(op => op.value === id)?.label || '-';
 
     const header = (
-        <div className="flex flex-column md:flex-row md:align-items-center justify-content-between gap-2">
-            <span className="p-input-icon-left w-full md:w-auto">
-                <i className="pi pi-search" />
-                <InputText value={globalFilterValue} onChange={onGlobalFilterChange} placeholder="Buscar cliente..." className="w-full md:w-auto" />
-            </span>
-            <div className="flex gap-2">
-                <Button label="Agregar cliente" icon="pi pi-plus" onClick={openNew} />
+        <div className="flex flex-column md:flex-row md:align-items-center justify-content-between gap-3">
+            <div className="flex flex-column sm:flex-row gap-2 align-items-center w-full md:w-auto">
+                <span className="p-input-icon-left w-full sm:w-auto">
+                    <i className="pi pi-search" />
+                    <InputText
+                        value={globalFilterValue}
+                        onChange={onGlobalFilterChange}
+                        placeholder="Buscar cliente..."
+                        className="w-full sm:w-auto"
+                    />
+                </span>
+                <SelectButton
+                    value={tipoFiltro}
+                    onChange={(e) => e.value && setTipoFiltro(e.value)}
+                    options={filtroOptions}
+                    className="p-button-sm"
+                />
             </div>
+
+            <Button label="Agregar cliente" icon="pi pi-plus" onClick={openNew} />
         </div>
     );
 
     const actionBodyTemplate = (rowData: Client) => (
-        <div className="flex gap-2 justify-content-center">
-            <Button icon="pi pi-pencil" rounded text severity="info" onClick={() => editClient(rowData)} />
-            <Button icon="pi pi-trash" rounded text severity="danger" onClick={() => confirmDeleteClient(rowData)} />
+        <div className="flex gap-1 justify-content-center">
+            <Button
+                icon="pi pi-history"
+                rounded
+                text
+                severity="help"
+                tooltip="Última compra"
+                onClick={() => handleVerUltimaCompra(rowData)}
+            />
+            <Button
+                icon="pi pi-pencil"
+                rounded
+                text
+                severity="info"
+                tooltip="Editar"
+                onClick={() => editClient(rowData)}
+            />
+            <Button
+                icon="pi pi-trash"
+                rounded
+                text
+                severity="danger"
+                tooltip="Eliminar"
+                onClick={() => confirmDeleteClient(rowData)}
+            />
         </div>
     );
 
@@ -151,7 +195,7 @@ const ListClientsPage = () => {
             <Toast ref={toast} />
 
             <div className="flex justify-content-between align-items-center mb-4">
-                <h2 className="m-0">Lista de Clientes</h2>
+                <h2 className="m-0">Lista de clientes</h2>
                 <Link href="/counter" passHref legacyBehavior>
                     <a className="p-button p-component p-button-text p-button-plain">
                         <i className="pi pi-arrow-left mr-2"></i>
@@ -172,24 +216,41 @@ const ListClientsPage = () => {
                 loading={loading}
                 dataKey="id"
             >
-                <Column field="nombre" header="Nombre" sortable style={{ minWidth: '12rem' }} />
-                <Column field="email" header="Correo" sortable style={{ minWidth: '12rem' }} />
+                <Column field="nombre" header="Nombre" sortable style={{ minWidth: '10rem' }} />
+                <Column field="email" header="Correo" sortable style={{ minWidth: '10rem' }} />
                 <Column field="telefono" header="Teléfono" sortable style={{ minWidth: '10rem' }} />
-                <Column field="rfc" header="R.F.C." sortable style={{ minWidth: '10rem' }} />
-                <Column body={(row: Client) => getRegimenLabel(row.idRegimenFiscal)} header="Régimen Fiscal" sortable style={{ minWidth: '12rem' }} />
-                <Column body={(row: Client) => getCfdiLabel(row.idUsoCfdi)} header="Uso del C.F.D.I." sortable style={{ minWidth: '8rem' }} />
-                <Column field="direccionFiscal" header="Dirección Fiscal" sortable style={{ minWidth: '15rem' }} />
-                <Column body={actionBodyTemplate} exportable={false} style={{ minWidth: '8rem', textAlign: 'center' }} />
+                <Column field="rfc" header="R.F.C." sortable style={{ minWidth: '6rem' }} />
+                <Column body={(row: Client) => getRegimenLabel(row.idRegimenFiscal)} header="Régimen fiscal" sortable style={{ minWidth: '12rem' }} />
+                <Column body={(row: Client) => getCfdiLabel(row.idUsoCfdi)} header="Uso del C.F.D.I." sortable style={{ minWidth: '10rem' }} />
+                <Column field="direccionFiscal" header="Dirección fiscal" sortable style={{ minWidth: '12rem' }} />
+                <Column body={actionBodyTemplate} exportable={false} style={{ minWidth: '10rem', textAlign: 'center' }} />
             </DataTable>
 
             <ClientFormDialog
                 visible={clientDialog}
-                onHide={hideDialog}
+                onHide={() => setClientDialog(false)}
                 onSuccess={handleClientSaved}
                 clientToEdit={client.id ? client : null}
             />
 
-            <Dialog visible={deleteClientDialog} style={{ width: '32rem' }} breakpoints={{ '960px': '75vw', '641px': '90vw' }} header="Confirmar" modal footer={deleteClientDialogFooter} onHide={() => setDeleteClientDialog(false)}>
+            <UltimaCompraDialog
+                visible={ultimaCompraDialog}
+                idCliente={selectedClientId}
+                onHide={() => {
+                    setUltimaCompraDialog(false);
+                    setSelectedClientId(null);
+                }}
+            />
+
+            <Dialog
+                visible={deleteClientDialog}
+                style={{ width: '32rem' }}
+                breakpoints={{ '960px': '75vw', '641px': '90vw' }}
+                header="Confirmar"
+                modal
+                footer={deleteClientDialogFooter}
+                onHide={() => setDeleteClientDialog(false)}
+            >
                 <div className="confirmation-content">
                     <i className="pi pi-exclamation-triangle mr-3 text-yellow-500" style={{ fontSize: '2rem' }} />
                     {client && (<span>¿Estás seguro de que quieres eliminar a <b>{client.nombre}</b>?</span>)}

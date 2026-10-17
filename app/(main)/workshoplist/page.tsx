@@ -51,11 +51,11 @@ const WorkshopListPage = () => {
                 if (client.id) clientMap.set(client.id, client.nombre);
             });
 
-                const resolverWorkshopStatus = (insumosVerificados: boolean, idEstatusActual: number): WorkshopStatus => {
-                    if (insumosVerificados) return 'confirmed';
-                    if (idEstatusActual === 2) return 'pending';
-                    return 'delayed';
-                };
+            const resolverWorkshopStatus = (insumosVerificados: boolean, idEstatusActual: number): WorkshopStatus => {
+                if (insumosVerificados) return 'confirmed';
+                if (idEstatusActual === 2) return 'pending';
+                return 'delayed';
+            };
 
             const processedOrders = activeOrdersOnly.map((order: any) => {
                 const resolvedClientName = clientMap.get(order.idCliente) || `Cliente #${order.idCliente}`;
@@ -173,31 +173,40 @@ const WorkshopListPage = () => {
             <Toast ref={toast} />
             <div className="col-12">
                 <Card className="mb-4 border-round-xl shadow-1">
-                    <div className="flex align-items-center justify-content-between mb-3">
-                        <div>
-                            <h1 className="m-0 text-3xl font-bold text-900">Bienvenido, Jefe de Taller</h1>
-                            <p className="mt-2 text-600 text-lg">
-                                Gestiona la producción. Revisa insumos antes de iniciar impresión.
-                            </p>
+                    <div className="flex align-items-center justify-content-between gap-3">
+                        <div className="flex flex-column flex-1 gap-3">
+                            <div>
+                                <h1 className="m-0 text-3xl font-bold text-900">
+                                    Bienvenido, Jefe de taller
+                                </h1>
+                                <p className="mt-2 mb-0 text-600 text-lg">
+                                    Recuerda realizar la revision insumos a la brevedad.
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-3 align-items-center">
+                                <span className="px-3 py-2 border-round bg-blue-100 text-blue-700 font-bold text-sm inline-flex align-items-center">
+                                    <i className="pi pi-box mr-2 text-blue-500"></i>
+                                    Por revisar insumos
+                                </span>
+                                <span className="px-3 py-2 border-round bg-green-100 text-green-700 font-bold text-sm inline-flex align-items-center">
+                                    <i className="pi pi-check-circle mr-2 text-green-500"></i>
+                                    Insumos listos
+                                </span>
+                                <span className="px-3 py-2 border-round bg-red-100 text-red-700 font-bold text-sm inline-flex align-items-center">
+                                    <i className="pi pi-calendar-times mr-2 text-red-500"></i>
+                                    En espera de insumos
+                                </span>
+                                <span className="px-3 py-2 border-round bg-yellow-100 text-yellow-700 font-bold text-sm inline-flex align-items-center">
+                                    <i className="pi pi-print mr-2 text-yellow-600"></i>
+                                    Listo para impresión
+                                </span>
+                            </div>
                         </div>
-                        <div className="hidden md:flex align-items-center justify-content-center surface-100 border-round" style={{ width: '4rem', height: '4rem' }}>
-                            <i className="pi pi-cog text-orange-500 text-3xl" />
+                        <div
+                            className="hidden md:flex align-items-center justify-content-center surface-100 border-round flex-shrink-0"
+                            style={{ width: '6rem', height: '6rem' }}>
+                            <i className="pi pi-cog text-orange-400 text-6xl" />
                         </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3 mt-3">
-                        <span className="px-3 py-1 border-round surface-100 bg-blue-100 text-blue-700 font-bold text-sm flex align-items-center">
-                            <i className="pi pi-box mr-2 text-blue-500"></i>Por revisar insumos
-                        </span>
-                        <span className="px-3 py-1 border-round surface-100 bg-green-100 text-green-700 font-bold text-sm flex align-items-center">
-                            <i className="pi pi-check-circle mr-2 text-green-500"></i>Insumos listos
-                        </span>
-                        <span className="px-3 py-1 border-round surface-100 bg-red-100 text-red-700 font-bold text-sm flex align-items-center">
-                            <i className="pi pi-calendar-times mr-2 text-red-500"></i>En espera de insumos
-                        </span>
-                        <span className="px-3 py-1 border-round surface-100 bg-yellow-100 text-yellow-700 font-bold text-sm flex align-items-center">
-                            <i className="pi pi-print mr-2 text-yellow-600"></i>Listo para impresion
-                        </span>
                     </div>
                 </Card>
 

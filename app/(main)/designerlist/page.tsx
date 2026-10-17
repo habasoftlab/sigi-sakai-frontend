@@ -159,13 +159,10 @@ const DesignerListPage = () => {
                             <div className="text-600">
                                 <div className="text-600">Recuerda enviar tus diseños listos a la brevedad</div>
                                 Tienes <span className="font-bold text-primary text-xl">{orders.length}</span> órdenes en tu bandeja.
-                                <ul className="text-sm mt-1 m-0 pl-3">
-                                    <li>Prioridad: Correcciones (Rechazadas)</li>
-                                </ul>
                             </div>
                         </div>
-                        <div className="hidden md:flex align-items-center justify-content-center bg-blue-50 border-round p-4">
-                            <i className="pi pi-palette text-blue-500 text-5xl" />
+                        <div className="hidden md:flex align-items-center justify-content-center surface-100 border-round" style={{ width: '6rem', height: '6rem' }}>
+                            <i className="pi pi-palette text-blue-500 text-6xl" />
                         </div>
                     </div>
                 </Card>
