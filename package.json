@@ -1,20 +1,28 @@
 {
   "name": "sakai-react",
-  "version": "10.1.0",
+  "version": "1.0.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "electron:dev": "electron .",
+    "electron:build": "next build && electron-builder --config electron-builder.config.cjs",
+    "electron:build-win": "next build && electron-builder --config electron-builder.config.cjs --win",
     "format": "prettier --write \"{app,demo,layout,types}/**/*.{js,ts,tsx,d.ts}\"",
     "lint": "next lint",
-    "sonar": "node sonar-project.js"
+    "sonar": "node sonar-project.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@types/node": "20.3.1",
     "@types/react": "18.2.12",
     "@types/react-dom": "18.2.5",
     "chart.js": "4.2.1",
+    "electron-updater": "^6.3.9",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "next": "13.4.8",
@@ -23,13 +31,30 @@
     "primereact": "10.2.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
+    "serve-handler": "^6.1.7",
     "typescript": "5.1.3"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
+    "@types/jest": "^30.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
     "eslint": "8.43.0",
     "eslint-config-next": "13.4.6",
+    "jest": "^30.5.2",
+    "jest-environment-jsdom": "^30.5.2",
     "prettier": "^2.8.8",
     "sass": "^1.63.4",
-    "sonarqube-scanner": "^5.0.0"
+    "sonarqube-scanner": "^5.0.0",
+    "ts-jest": "^29.4.15"
+  },
+  "allowScripts": {
+    "@parcel/watcher@2.6.0": true,
+    "core-js@3.50.0": true,
+    "electron-winstaller@5.4.0": true,
+    "unrs-resolver@1.12.2": true,
+    "electron@33.4.11": true
   }
 }

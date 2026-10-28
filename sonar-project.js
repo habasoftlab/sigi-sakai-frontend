@@ -6,13 +6,13 @@ sonarqubeScanner(
         options: {
             'sonar.projectName': 'Frontend - React/Next.js/Electron',
             'sonar.projectKey': 'frontend-app',
-            'sonar.login': 'squ_816aa3d1266bd5698052220e9efaa38c2a80196e',
-
+            'sonar.host.url': 'http://localhost:9000',
+            'sonar.login': 'sqp_8d4f344f09233a8ff619f26dcecb9272a9c8e022',
             'sonar.sources': 'app,layout',
-
             'sonar.typescript.tsconfigPath': 'tsconfig.sonar.json',
-            'sonar.coverage.exclusions': '**/*',
-
+            'sonar.tests': 'app',
+            'sonar.test.inclusions': 'app/**/*.test.tsx,app/**/*.spec.tsx,app/**/*.test.ts,app/**/*.spec.ts',
+            'sonar.javascript.lcov.reportPaths': 'coverage/lcov.info',
             'sonar.exclusions': [
                 '**/node_modules/**',
                 '**/.next/**',

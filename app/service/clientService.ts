@@ -5,9 +5,13 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export const ClientService = {
     async getAll(tipo?: TipoClienteFiltro): Promise<Client[]> {
-        const queryParam = tipo && tipo !== 'todos' ? `?tipo=${tipo}` : '';
-        const res = await apiClient(`${API_BASE_URL}/clientes${queryParam}`);
-        
+        const isFiltered = tipo && tipo !== 'todos';
+        const endpoint = isFiltered
+            ? `${API_BASE_URL}/clientes/filtrar?tipo=${tipo}`
+            : `${API_BASE_URL}/clientes`;
+
+        const res = await apiClient(endpoint);
+
         if (!res.ok) throw new Error("Error al obtener clientes");
 
         const data = await res.json();

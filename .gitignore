@@ -12,6 +12,7 @@
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
@@ -34,3 +35,6 @@ next-env.d.ts
 
 # SonarQube temporary files
 .scannerwork/
+
+# Testing coverage
+coverage/
