@@ -158,163 +158,227 @@ const UploadReceiptPage = () => {
         setShowDelayDialog(false);
     };
 
-    if (loading) {
-        return (
-            <div className="flex justify-content-center align-items-center p-6 gap-3">
-                <i className="pi pi-spin pi-spinner text-3xl text-primary"></i>
-                <span className="text-lg text-600">Cargando solicitud de insumos...</span>
-            </div>
-        );
-    }
-
     return (
         <div className="grid justify-content-center">
             <Toast ref={toast} />
 
-            <div className="col-12 md:col-8 lg:col-6">
-                <div className="flex align-items-center gap-3 mb-4">
-                    <Link href="/" passHref legacyBehavior>
-                        <a className="p-button p-component p-button-text p-button-rounded p-button-icon-only">
-                            <i className="pi pi-arrow-left text-xl"></i>
-                        </a>
-                    </Link>
-                    <h1 className="m-0 text-3xl font-bold">Orden N° {orderIdParam}</h1>
+            {loading ? (
+                <div className="flex justify-content-center align-items-center p-6 gap-3">
+                    <i className="pi pi-spin pi-spinner text-3xl text-primary"></i>
+                    <span className="text-lg text-600">
+                        Cargando solicitud de insumos...
+                    </span>
                 </div>
+            ) : (
+                <>
+                    <div className="col-12 md:col-8 lg:col-6">
+                        <div className="flex align-items-center gap-3 mb-4">
+                            <Link href="/" passHref legacyBehavior>
+                                <a className="p-button p-component p-button-text p-button-rounded p-button-icon-only">
+                                    <i className="pi pi-arrow-left text-xl"></i>
+                                </a>
+                            </Link>
 
-                {/* Detalle de Insumos Reales */}
-                <Card className="mb-4 shadow-2">
-                    <h2 className="text-xl font-bold m-0 mb-3 flex align-items-center">
-                        <i className="pi pi-list mr-2 text-blue-500"></i>
-                        Detalle de la Solicitud
-                    </h2>
-
-                    <div className="mb-3">
-                        <span className="block text-900 font-medium text-lg">
-                            {solicitud?.descripcionSolicitud || 'Solicitud de Insumos para Producción'}
-                        </span>
-                        <span className="block text-500 text-sm mt-1">
-                            Solicitud #{solicitud?.idSolicitud || 'N/A'} - Creada el:{' '}
-                            {solicitud?.fechaCreacion ? new Date(solicitud.fechaCreacion).toLocaleString() : '-'}
-                        </span>
-                    </div>
-
-                    <div className="surface-100 p-3 border-round">
-                        <div className="font-bold mb-3 text-900">Materiales / Insumos requeridos:</div>
-                        {solicitud?.detalles && solicitud.detalles.length > 0 ? (
-                            <ul className="list-none p-0 m-0 flex flex-column gap-2">
-                                {solicitud.detalles.map((det: DetalleSolicitud) => {
-                                    const productIdKey = String(det.idProducto);
-                                    const producto = productosMap.get(productIdKey);
-
-                                    const tituloProducto = producto?.nombre || producto?.descripcion || `Producto ID #${det.idProducto}`;
-                                    const textoCantidad = formatCantidadInsumo(det.cantidad, producto);
-
-                                    return (
-                                        <li
-                                            key={det.idDetalle}
-                                            className="surface-card p-3 border-round border-1 surface-border flex align-items-center justify-content-between shadow-1"
-                                        >
-                                            <div className="flex align-items-center gap-3">
-                                                <i className="pi pi-box text-xl text-primary"></i>
-                                                <div className="flex flex-column">
-                                                    <span className="font-bold text-900 text-sm">
-                                                        {tituloProducto}
-                                                    </span>
-                                                    {producto?.formatoTamano && (
-                                                        <span className="text-xs text-500">
-                                                            Formato: {producto.formatoTamano}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            <div className="text-right">
-                                                <span className="p-tag p-tag-info font-bold text-sm">
-                                                    {textoCantidad}
-                                                </span>
-                                            </div>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        ) : (
-                            <span className="text-500 text-sm">Sin detalles de insumos registrados.</span>
-                        )}
-                    </div>
-                </Card>
-
-                {/* Zona de Carga de Comprobante */}
-                <Card className="shadow-4 border-top-3 border-red-500 bg-red-50 relative">
-                    <Button
-                        icon="pi pi-bell"
-                        className="p-button-rounded p-button-danger p-button-text absolute top-0 right-0 mt-3 mr-3"
-                        tooltip="Notificar retraso (Días)"
-                        onClick={() => setShowDelayDialog(true)}
-                    />
-
-                    <div className="text-center mb-4">
-                        <div className="inline-flex align-items-center justify-content-center bg-red-100 border-circle w-4rem h-4rem mb-3">
-                            <i className="pi pi-exclamation-triangle text-2xl text-red-600"></i>
+                            <h1 className="m-0 text-3xl font-bold">
+                                Orden N° {orderIdParam}
+                            </h1>
                         </div>
-                        <h2 className="text-2xl font-bold m-0 text-red-700">Insumos Pendientes</h2>
-                        <p className="text-red-600 mt-2">
-                            Adjunta el comprobante/recibo o factura de compra correspondiente a esta orden.
-                        </p>
+
+                        {/* Detalle de Insumos Reales */}
+                        <Card className="mb-4 shadow-2">
+                            <h2 className="text-xl font-bold m-0 mb-3 flex align-items-center">
+                                <i className="pi pi-list mr-2 text-blue-500"></i>
+                                Detalle de la Solicitud
+                            </h2>
+
+                            <div className="mb-3">
+                                <span className="block text-900 font-medium text-lg">
+                                    {solicitud?.descripcionSolicitud ||
+                                        'Solicitud de Insumos para Producción'}
+                                </span>
+
+                                <span className="block text-500 text-sm mt-1">
+                                    Solicitud #{solicitud?.idSolicitud || 'N/A'} -
+                                    Creada el:{' '}
+                                    {solicitud?.fechaCreacion
+                                        ? new Date(
+                                            solicitud.fechaCreacion
+                                        ).toLocaleString()
+                                        : '-'}
+                                </span>
+                            </div>
+
+                            <div className="surface-100 p-3 border-round">
+                                <div className="font-bold mb-3 text-900">
+                                    Materiales / Insumos requeridos:
+                                </div>
+
+                                {solicitud?.detalles &&
+                                    solicitud.detalles.length > 0 ? (
+                                    <ul className="list-none p-0 m-0 flex flex-column gap-2">
+                                        {solicitud.detalles.map(
+                                            (det: DetalleSolicitud) => {
+                                                const productIdKey = String(
+                                                    det.idProducto
+                                                );
+                                                const producto =
+                                                    productosMap.get(productIdKey);
+
+                                                const tituloProducto =
+                                                    producto?.nombre ||
+                                                    producto?.descripcion ||
+                                                    `Producto ID #${det.idProducto}`;
+
+                                                const textoCantidad =
+                                                    formatCantidadInsumo(
+                                                        det.cantidad,
+                                                        producto
+                                                    );
+
+                                                return (
+                                                    <li
+                                                        key={det.idDetalle}
+                                                        className="surface-card p-3 border-round border-1 surface-border flex align-items-center justify-content-between shadow-1"
+                                                    >
+                                                        <div className="flex align-items-center gap-3">
+                                                            <i className="pi pi-box text-xl text-primary"></i>
+
+                                                            <div className="flex flex-column">
+                                                                <span className="font-bold text-900 text-sm">
+                                                                    {tituloProducto}
+                                                                </span>
+
+                                                                {producto?.formatoTamano && (
+                                                                    <span className="text-xs text-500">
+                                                                        Formato:{' '}
+                                                                        {
+                                                                            producto.formatoTamano
+                                                                        }
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="text-right">
+                                                            <span className="p-tag p-tag-info font-bold text-sm">
+                                                                {textoCantidad}
+                                                            </span>
+                                                        </div>
+                                                    </li>
+                                                );
+                                            }
+                                        )}
+                                    </ul>
+                                ) : (
+                                    <span className="text-500 text-sm">
+                                        Sin detalles de insumos registrados.
+                                    </span>
+                                )}
+                            </div>
+                        </Card>
+
+                        {/* Zona de Carga de Comprobante */}
+                        <Card className="shadow-4 border-top-3 border-red-500 bg-red-50 relative">
+                            <Button
+                                icon="pi pi-bell"
+                                className="p-button-rounded p-button-danger p-button-text absolute top-0 right-0 mt-3 mr-3"
+                                tooltip="Notificar retraso (Días)"
+                                onClick={() => setShowDelayDialog(true)}
+                            />
+
+                            <div className="text-center mb-4">
+                                <div className="inline-flex align-items-center justify-content-center bg-red-100 border-circle w-4rem h-4rem mb-3">
+                                    <i className="pi pi-exclamation-triangle text-2xl text-red-600"></i>
+                                </div>
+
+                                <h2 className="text-2xl font-bold m-0 text-red-700">
+                                    Insumos Pendientes
+                                </h2>
+
+                                <p className="text-red-600 mt-2">
+                                    Adjunta el comprobante/recibo o factura de
+                                    compra correspondiente a esta orden.
+                                </p>
+                            </div>
+
+                            <div className="surface-card border-2 border-dashed surface-border border-round p-5 flex flex-column align-items-center justify-content-center bg-white">
+                                <i className="pi pi-cloud-upload text-6xl text-400 mb-4"></i>
+
+                                <FileUpload
+                                    mode="basic"
+                                    name="file"
+                                    customUpload
+                                    uploadHandler={onCustomUpload}
+                                    accept="image/*,application/pdf"
+                                    maxFileSize={2000000}
+                                    chooseLabel="Sube tu recibo"
+                                    className="p-button-lg"
+                                    auto={true}
+                                />
+
+                                <span className="text-500 mt-3 text-sm">
+                                    Formatos aceptados: PDF, JPG, PNG (Máx 2MB)
+                                </span>
+                            </div>
+                        </Card>
                     </div>
 
-                    <div className="surface-card border-2 border-dashed surface-border border-round p-5 flex flex-column align-items-center justify-content-center bg-white">
-                        <i className="pi pi-cloud-upload text-6xl text-400 mb-4"></i>
-                        <FileUpload
-                            mode="basic"
-                            name="file"
-                            customUpload
-                            uploadHandler={onCustomUpload}
-                            accept="image/*,application/pdf"
-                            maxFileSize={2000000}
-                            chooseLabel="Sube tu recibo"
-                            className="p-button-lg"
-                            auto={true}
-                        />
-                        <span className="text-500 mt-3 text-sm">Formatos aceptados: PDF, JPG, PNG (Máx 2MB)</span>
-                    </div>
-                </Card>
-            </div>
+                    {/* Modal para Notificar Retraso */}
+                    <Dialog
+                        header="Insumos Atrasados"
+                        visible={showDelayDialog}
+                        style={{ width: '90vw', maxWidth: '400px' }}
+                        modal
+                        onHide={() => setShowDelayDialog(false)}
+                    >
+                        <div className="flex flex-column gap-3 pt-2">
+                            <p className="m-0 line-height-3 text-sm text-600">
+                                Notificar al equipo sobre el tiempo estimado de
+                                llegada de los insumos requeridos.
+                            </p>
 
-            {/* Modal para Notificar Retraso */}
-            <Dialog
-                header="Insumos Atrasados"
-                visible={showDelayDialog}
-                style={{ width: '90vw', maxWidth: '400px' }}
-                modal
-                onHide={() => setShowDelayDialog(false)}
-            >
-                <div className="flex flex-column gap-3 pt-2">
-                    <p className="m-0 line-height-3 text-sm text-600">
-                        Notificar al equipo sobre el tiempo estimado de llegada de los insumos requeridos.
-                    </p>
+                            <div className="field">
+                                <label
+                                    htmlFor="days"
+                                    className="font-bold block mb-2"
+                                >
+                                    Cantidad de días de retraso:
+                                </label>
 
-                    <div className="field">
-                        <label htmlFor="days" className="font-bold block mb-2">Cantidad de días de retraso:</label>
-                        <InputNumber
-                            id="days"
-                            value={delayDays}
-                            onValueChange={(e: InputNumberValueChangeEvent) => setDelayDays(e.value ?? null)}
-                            showButtons
-                            min={1}
-                            suffix=" días"
-                            className="w-full"
-                            inputClassName="text-center"
-                        />
-                    </div>
+                                <InputNumber
+                                    id="days"
+                                    value={delayDays}
+                                    onValueChange={(
+                                        e: InputNumberValueChangeEvent
+                                    ) => setDelayDays(e.value ?? null)}
+                                    showButtons
+                                    min={1}
+                                    suffix=" días"
+                                    className="w-full"
+                                    inputClassName="text-center"
+                                />
+                            </div>
 
-                    <div className="flex justify-content-end gap-2">
-                        <Button label="Cancelar" icon="pi pi-times" text onClick={() => setShowDelayDialog(false)} />
-                        <Button label="Notificar" icon="pi pi-send" severity="danger" onClick={handleNotifyDelay} />
-                    </div>
-                </div>
-            </Dialog>
+                            <div className="flex justify-content-end gap-2">
+                                <Button
+                                    label="Cancelar"
+                                    icon="pi pi-times"
+                                    text
+                                    onClick={() => setShowDelayDialog(false)}
+                                />
+
+                                <Button
+                                    label="Notificar"
+                                    icon="pi pi-send"
+                                    severity="danger"
+                                    onClick={handleNotifyDelay}
+                                />
+                            </div>
+                        </div>
+                    </Dialog>
+                </>
+            )}
         </div>
     );
 };
-
 export default UploadReceiptPage;

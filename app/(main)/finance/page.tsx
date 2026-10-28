@@ -193,11 +193,27 @@ const FinancePage = () => {
     }, [fetchFlujoCaja]);
 
     const handleSaveMovimiento = async () => {
-        if (!movimientoConcepto.trim() || !movimientoMonto || !movimientoTipo) {
-            toast.current?.show({ severity: 'warn', summary: 'Datos Incompletos', detail: 'Por favor, llena todos los campos.', life: 3000 });
+        if (
+            !movimientoConcepto.trim() ||
+            movimientoMonto == null ||
+            !movimientoTipo
+        ) {
+            toast.current?.show({
+                severity: 'warn',
+                summary: 'Datos Incompletos',
+                detail: 'Por favor, llena todos los campos.',
+                life: 3000
+            });
             return;
         }
-
+        if (movimientoMonto <= 0) {
+            toast.current?.show({
+                severity: 'warn',
+                summary: 'Monto inválido',
+                detail: 'El monto del egreso debe ser mayor a cero.'
+            });
+            return;
+        }
         setSavingMovimiento(true);
         try {
             const userStr = localStorage.getItem('user');
@@ -228,13 +244,30 @@ const FinancePage = () => {
             console.error("Error al registrar", error);
             toast.current?.show({ severity: 'error', summary: 'Error', detail: error.message || 'Error al registrar el movimiento', life: 3000 });
         } finally {
-            setSavingMovimiento(true);
+            setSavingMovimiento(false);
         }
     };
 
     const handleSaveAjuste = async () => {
-        if (!ajusteConcepto.trim() || !ajusteMonto || !ajusteTipo) {
-            toast.current?.show({ severity: 'warn', summary: 'Datos Incompletos', detail: 'Por favor, llena todos los campos.', life: 3000 });
+        if (
+            !ajusteConcepto.trim() ||
+            ajusteMonto == null ||
+            !ajusteTipo
+        ) {
+            toast.current?.show({
+                severity: 'warn',
+                summary: 'Datos Incompletos',
+                detail: 'Por favor, llena todos los campos.',
+                life: 3000
+            });
+            return;
+        }
+        if (ajusteMonto <= 0) {
+            toast.current?.show({
+                severity: 'warn',
+                summary: 'Monto inválido',
+                detail: 'El monto del ajuste debe ser mayor a cero.'
+            });
             return;
         }
 
@@ -458,7 +491,7 @@ const FinancePage = () => {
                                 <label className="font-bold block mb-2">Monto</label>
                                 <InputNumber
                                     value={ajusteMonto}
-                                    onValueChange={(e) => setAjusteMonto(e.value || null)}
+                                    onValueChange={(e) => setAjusteMonto(e.value ?? null)}
                                     mode="currency"
                                     currency="MXN"
                                     locale="es-MX"
@@ -509,7 +542,7 @@ const FinancePage = () => {
                                 <label className="font-bold block mb-2">Monto</label>
                                 <InputNumber
                                     value={movimientoMonto}
-                                    onValueChange={(e) => setMovimientoMonto(e.value || null)}
+                                    onValueChange={(e) => setMovimientoMonto(e.value ?? null)}
                                     mode="currency"
                                     currency="MXN"
                                     locale="es-MX"

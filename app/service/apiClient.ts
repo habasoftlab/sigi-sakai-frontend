@@ -1,6 +1,12 @@
-
-export const apiClient = async (endpoint: string, options: RequestInit = {}) => {
+export const apiClient = async (
+    endpoint: string,
+    options: RequestInit = {},
+    redirect: (url: string) => void = (url) => {
+        window.location.href = url;
+    }
+) => {
     let token = localStorage.getItem('token');
+
     if (!token) {
         const userStr = localStorage.getItem('user');
         token = userStr ? JSON.parse(userStr).token : null;
@@ -8,7 +14,10 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
 
     const headers = new Headers(options.headers);
 
-    if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    if (
+        !headers.has('Content-Type') &&
+        !(options.body instanceof FormData)
+    ) {
         headers.set('Content-Type', 'application/json');
     }
 
@@ -22,15 +31,16 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     });
 
     if (response.status === 401 || response.status === 403) {
-        console.warn("Token inválido o expirado. Redirigiendo al login...");
+        console.warn('Token inválido o expirado. Redirigiendo al login...');
+
         localStorage.removeItem('token');
         localStorage.removeItem('user');
 
         if (typeof window !== 'undefined') {
-            window.location.href = '/auth/login';
+            redirect('/auth/login');
         }
 
-        throw new Error("Sesión expirada");
+        throw new Error('Sesión expirada');
     }
 
     return response;

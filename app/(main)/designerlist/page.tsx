@@ -184,8 +184,9 @@ const DesignerListPage = () => {
                             field="fechaEntregaFormal"
                             header="Fecha"
                             body={renderFecha}
+                            sortable
                         />
-                        <Column header="Cliente" body={clientBodyTemplate} style={{ width: '25%' }} />
+                        <Column header="Cliente" body={clientBodyTemplate} sortable style={{ width: '25%' }} />
                         <Column header="Estatus" body={statusBodyTemplate} sortable field="idEstatusActual" style={{ width: '20%' }} />
                         <Column field="montoTotal" header="Valor" body={(data) => formatCurrency(data.montoTotal)} sortable style={{ width: '10%' }} />
                         <Column header="Acción" body={actionBodyTemplate} style={{ width: '10%', textAlign: 'center' }} />

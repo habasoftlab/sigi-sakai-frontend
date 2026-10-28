@@ -94,27 +94,41 @@ const WorkshopListPage = () => {
         switch (rowData.workshopStatus) {
             case 'confirmed':
                 icon = 'pi pi-check-circle';
-                colorClass = 'text-green-500 font-bold';
+                colorClass = 'text-green-500';
                 tooltip = 'Insumos verificados y listos';
                 break;
             case 'delayed':
                 icon = 'pi pi-exclamation-triangle';
-                colorClass = 'text-red-500';
+                colorClass = 'text-red-400';
                 tooltip = 'Faltan insumos en espera de compras';
                 break;
             case 'pending':
             default:
                 icon = 'pi pi-box';
-                colorClass = 'text-blue-500';
-                tooltip = 'Pendiente de revisión (Clic para verificar)';
+                colorClass = 'text-blue-400';
+                tooltip = 'Pendiente de revisión';
                 break;
         }
 
         if (rowData.workshopStatus === 'confirmed') {
             return (
-                <div className="flex align-items-center justify-content-center">
+                <div className="flex align-items-center justify-content-center w-full">
                     <div
-                        className="p-2 border-circle surface-100 flex align-items-center justify-content-center"
+                        className="p-2 border-circle flex align-items-center justify-content-center"
+                        style={{ width: '3rem', height: '3rem', cursor: 'default' }}
+                        title={tooltip}
+                    >
+                        <i className={`${icon} ${colorClass}`} style={{ fontSize: '1.5rem' }}></i>
+                    </div>
+                </div>
+            );
+        }
+
+        if (rowData.workshopStatus === 'delayed') {
+            return (
+                <div className="flex align-items-center justify-content-center w-full">
+                    <div
+                        className="p-2 border-circle flex align-items-center justify-content-center"
                         style={{ width: '3rem', height: '3rem', cursor: 'default' }}
                         title={tooltip}
                     >
@@ -125,7 +139,7 @@ const WorkshopListPage = () => {
         }
 
         return (
-            <div className="flex align-items-center justify-content-center">
+            <div className="flex align-items-center justify-content-center w-full">
                 <Link href={`/workshopsupplies?id=${rowData.idOrden}`} passHref legacyBehavior>
                     <a className="p-button p-component p-button-text p-button-rounded p-button-plain no-underline hover:surface-200 border-circle w-3rem h-3rem flex align-items-center justify-content-center transition-colors transition-duration-200" title={tooltip}>
                         <i className={`${icon} ${colorClass}`} style={{ fontSize: '1.5rem' }}></i>
@@ -147,21 +161,23 @@ const WorkshopListPage = () => {
         }
 
         return (
-            <div className="flex justify-content-center">
+            <div className="flex align-items-center justify-content-center w-full" style={{ minHeight: '3rem' }}>
                 {canPrint ? (
                     <Link href={`/workshopprint?id=${rowData.idOrden}`} passHref legacyBehavior>
-                        <a className="p-button p-component p-button-rounded p-button-text hover:surface-100 border-circle w-3rem h-3rem flex align-items-center justify-content-center transition-colors transition-duration-200" title={tooltip}>
-                            <i className={`pi pi-print ${iconClass}`} style={{ fontSize: '1.5rem' }}></i>
+                        <a
+                            className="p-button p-component p-button-rounded p-button-text hover:surface-100 border-circle w-3rem h-3rem flex align-items-center justify-content-center"
+                            title={tooltip}
+                        >
+                            <i className={`pi pi-print ${iconClass}`} style={{ fontSize: '1.5rem' }} />
                         </a>
                     </Link>
                 ) : (
                     <Button
                         icon={`pi pi-print ${iconClass}`}
-                        className="p-button-rounded p-button-text hover:surface-100 border-circle w-3rem h-3rem"
+                        className="p-button-rounded p-button-text border-circle w-3rem h-3rem"
                         tooltip={tooltip}
                         tooltipOptions={{ position: 'top' }}
-                        disabled={true}
-                        style={{ fontSize: '1.5rem' }}
+                        disabled
                     />
                 )}
             </div>
@@ -193,7 +209,7 @@ const WorkshopListPage = () => {
                                     Insumos listos
                                 </span>
                                 <span className="px-3 py-2 border-round bg-red-100 text-red-700 font-bold text-sm inline-flex align-items-center">
-                                    <i className="pi pi-calendar-times mr-2 text-red-500"></i>
+                                    <i className="pi pi-exclamation-triangle mr-2 text-red-500"></i>
                                     En espera de insumos
                                 </span>
                                 <span className="px-3 py-2 border-round bg-yellow-100 text-yellow-700 font-bold text-sm inline-flex align-items-center">
@@ -228,19 +244,23 @@ const WorkshopListPage = () => {
                             sortable
                             style={{ width: '15%' }}
                         />
-                        <Column field="clienteNombre" header="Cliente" sortable style={{ width: '35%' }} />
+                        <Column field="clienteNombre" header="Cliente" sortable style={{ width: '20%' }} />
                         <Column field="montoTotal" header="Valor" body={(data) => formatCurrency(data.montoTotal)} sortable style={{ width: '15%' }} />
 
                         <Column
                             header="Insumos"
                             body={suppliesBodyTemplate}
-                            style={{ width: '12%', textAlign: 'center' }}
+                            style={{ width: '10%' }}
+                            bodyStyle={{ textAlign: 'center' }}
+                            headerStyle={{ textAlign: 'center' }}
                         />
 
                         <Column
                             header="Impresión"
                             body={printDesignBodyTemplate}
-                            style={{ width: '13%', textAlign: 'center' }}
+                            style={{ width: '10%' }}
+                            bodyStyle={{ textAlign: 'center' }}
+                            headerStyle={{ textAlign: 'center' }}
                         />
                     </DataTable>
                 </div>
